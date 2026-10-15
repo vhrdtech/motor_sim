@@ -1,0 +1,11 @@
+[package]
+name = "motor_sim"
+version = "0.1.0"
+authors = ["Roman Isaikin <romix.lab@gmail.com>"]
+edition = "2024"
+license = "MIT"
+description = "Deterministic no_std electric motor simulator (PMSM/BLDC plant, inverter, mechanics, sensors)"
+repository = "https://github.com/vhrdtech/motor_sim"
+
+[dependencies]
+libm = "0.2"
