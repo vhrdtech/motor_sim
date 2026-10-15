@@ -125,6 +125,8 @@ pub struct Motor {
     truth: Truth,
     sensors: SensorModel,
     inverter_rng: Rng,
+    /// Rotor speed at the start of the previous substep, rad/s, to predict the mid-step speed.
+    omega_m_prev: f32,
 }
 
 impl Motor {
@@ -140,6 +142,7 @@ impl Motor {
             },
             sensors: SensorModel::new(seed),
             inverter_rng: Rng::new(seed, 3),
+            omega_m_prev: 0.0,
         };
         m.sample_sensors();
         m
@@ -169,7 +172,14 @@ impl Motor {
         let mut e_in = 0.0f64;
         for _ in 0..n {
             let theta_e = wrap_tau(pp as f64 * mech.theta_m) as f32;
-            let omega_e = pp * mech.omega_m;
+            // Freeze ω for the electrical step at the predicted mid-step speed, so the electrical and mechanical
+            // sides exchange the same energy to second order.
+            let omega_m = match self.load {
+                Load::Speed { .. } | Load::Locked => mech.omega_m,
+                _ => 1.5 * mech.omega_m - 0.5 * self.omega_m_prev,
+            };
+            self.omega_m_prev = mech.omega_m;
+            let omega_e = pp * omega_m;
             let i0 = (t.i_d, t.i_q);
             let i1 = if duty.is_some() {
                 electrical::step_exact(&p.pmsm, i0, v_ab, theta_e, omega_e, h)

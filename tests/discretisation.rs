@@ -121,10 +121,9 @@ fn spm_at_speed_step_matches_analytic() {
     let params = presets::vesc_hobby_outrunner();
     let p = params.pmsm;
     let omega_m = 600.0; // ≈ 5700 rpm, ωe = 4200 rad/s: ωe·h = 0.17 rad per PWM period
-    let mut m = spinning(params, omega_m);
+    let th0 = spinning(params, omega_m).truth().theta_e as f64;
     let (r, l, lam) = (p.rs_ohm as f64, p.ld_h as f64, p.flux_linkage_wb as f64);
     let w = p.pole_pairs as f64 * omega_m as f64;
-    let th0 = m.truth().theta_e as f64;
     let v = (2.0f32, 1.0f32);
     for n in [1u32, 2, 4] {
         let mut m = spinning(params, omega_m);

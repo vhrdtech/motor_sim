@@ -45,13 +45,12 @@ impl SensorModel {
         let lsb_i = 2.0 * p.current_full_scale_a / pow2(p.current_adc_bits);
         let half = pow2(p.current_adc_bits) / 2.0;
         let i_true = [t.i_a, t.i_b, t.i_c];
-        for k in 0..3 {
+        for (k, i) in i_true.into_iter().enumerate() {
             let noise = self.noise.normal() * p.current_noise_a;
             let glitch = self.faults.chance(f.current_glitch_probability);
             let glitch_code = self.faults.uniform() * 2.0 * half - half;
-            let raw = f.current_gain[k]
-                * (i_true[k] + p.current_offset_a[k] + f.current_offset_a[k])
-                + noise;
+            let raw =
+                f.current_gain[k] * (i + p.current_offset_a[k] + f.current_offset_a[k]) + noise;
             let code = if glitch {
                 libm::floorf(glitch_code)
             } else {

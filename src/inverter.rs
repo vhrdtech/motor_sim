@@ -49,7 +49,7 @@ pub(crate) fn duties(drive: &Drive, vdc_v: f32) -> Option<[f32; 3]> {
 
 /// Clamp to 0..=1; NaN becomes 0.
 fn clamp_duty(d: f32) -> f32 {
-    d.max(0.0).min(1.0)
+    if d.is_nan() { 0.0 } else { d.clamp(0.0, 1.0) }
 }
 
 /// Apply inverter faults to the leg duties. Draws one random number per leg every call.
