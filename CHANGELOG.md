@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-15
+
 ### Added
 
 - dq PMSM plant (MS-1): `Motor::step` solves the electrical equations exactly per step, with an average inverter
