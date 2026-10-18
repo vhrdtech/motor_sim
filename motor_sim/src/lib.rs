@@ -20,6 +20,17 @@
 //! let _currents = motor.sensors().i_abc_a;
 //! motor.visit(&mut |var: &motor_sim::Var, value| { let _ = (var.name, var.unit, value); });
 //! ```
+//!
+//! # Layers
+//!
+//! Inside, the plant is a stack of layers run in a fixed order per base substep, each with its own level of
+//! detail: drive ([`Drive`]), power stage (average legs, optionally through a PWM [`Carrier`] so a step need not be
+//! one PWM period), electromagnetics (a [`Machine`]: flux as state, current from its map, torque from the
+//! co-energy), mechanics and [`Load`], thermal and NVH at slower integer rates ([`ThermalParams`], [`NvhParams`]:
+//! slots for now), sensors and faults. [`Motor`] runs it with the linear dq machine of its [`PmsmParams`];
+//! [`Plant`] runs it with any [`Machine`]: a full inductance matrix ([`LinearDq`]), the stationary frame
+//! ([`LinearAlphaBeta`]), or flux maps on uniform tables ([`MapMachine`] over [`Grid2`]/[`Grid3`], feature `maps`,
+//! on by default).
 #![no_std]
 #![deny(missing_docs)]
 

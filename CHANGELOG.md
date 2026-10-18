@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+### Added
+
+- Layered engine (MS-7): `Plant<M: Machine>` runs the same layers as `Motor` (drive, power stage,
+  electromagnetics, mechanics, thermal and NVH slots, sensors) with any machine. A `Machine` is a magnetic two-port
+  in its `Frame` (`Dq` or `AlphaBeta`) with flux as state, current from its map and torque from the co-energy:
+  `PmsmParams`, `LinearDq` (full inductance matrix, mutual `Ldq`), `LinearAlphaBeta`, and `MapMachine` on
+  uniform tables `Grid2`/`Grid3` over borrowed slices (feature `maps`, default on).
+- `Carrier` (centre or edge aligned) with `Motor::set_carrier`: duties become compare values and every substep gets
+  the legs' exact volt-seconds, so steps need not be one PWM period.
+- `ThermalParams`/`NvhParams` with their levels (`Off` for now), run at integer rate ratios in a fixed order.
+
+### Changed
+
+- `Motor` runs on the new engine; its API, presets and results are unchanged (the exponential step reproduces
+  MS-1's closed form to 1e-6 of the peak current and is now formed as an increment, so f32 rounding no longer piles
+  up over many short steps).
+
 ## 2026-10-18: motor_cad 0.1.0, motor_twin 0.1.0
 
 New crates; per-crate versions (the workspace has no single one yet, P2630#18oct-1556).

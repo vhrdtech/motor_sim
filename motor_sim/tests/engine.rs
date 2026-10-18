@@ -665,3 +665,24 @@ fn step_independent_of_pwm_period() {
     assert!(err_p < 2e-3 * peak && err_q < 2e-3 * peak);
     assert!(werr < 1e-3);
 }
+
+/// Changing inductances between steps keeps the currents (as MS-1, whose state was the current): the flux state is
+/// re-derived from them.
+#[test]
+fn params_change_keeps_currents_continuous() {
+    let mut m = Motor::new(presets::ipm(), 1);
+    m.set_load(Load::Locked);
+    let d = Drive::AlphaBeta {
+        v_alpha_v: 1.0,
+        v_beta_v: 0.5,
+    };
+    for _ in 0..200 {
+        m.step(&d, DT);
+    }
+    let before = (m.truth().i_d, m.truth().i_q);
+    m.params_mut().pmsm.ld_h *= 2.0;
+    m.params_mut().pmsm.lq_h *= 0.5;
+    m.step(&d, 1e-9);
+    let after = (m.truth().i_d, m.truth().i_q);
+    assert!((after.0 - before.0).abs() < 1e-4 && (after.1 - before.1).abs() < 1e-4);
+}

@@ -30,14 +30,25 @@ Inverter: `Carrier { period_s, align: Center|Edge }`; `Motor::set_carrier(Some(.
 
 ## Status
 
-- [ ] step 1 plan (this file)
-- [ ] step 2 restructure + engine + Plant, MS-1 tests unchanged
-- [ ] step 3 grids + MapMachine
-- [ ] step 4 carrier + multirate
-- [ ] step 5 new tests, bench, docs
+- [x] step 1 plan (this file)
+- [x] step 2-4 restructure, engine, Plant, grids + MapMachine, carrier, multirate (32db5e2); `core.rs` became `stack.rs` (a module named `core` shadows `::core`)
+- [x] step 5 tests in tests/engine.rs (5f9d49b + docs commit): MS-1 closed form to <1e-6 of peak, LinearDq Ldq≠0 1-50 µs vs RK4 < 4e-6, saturated map second order (7.7e-4 at 50 µs, 2.9e-5 at 10 µs), energy balance with 2D maps 1e-4 / 3D maps 1e-3 incl. a saturating pulse, carrier 10 µs vs per-period steps 2.6e-4 of peak, params_mut keeps currents
+- [ ] waiting: MS-8 bench (session ms-bench) to land on main, then `git rebase main`, add the engine rows (L1 Motor, Plant<LinearDq>, Plant<MapMachine Grid2/Grid3>, carrier at 10 µs), check L1 within 20 % of base
+- [ ] waiting: demo fix (batching-docs) to land so `just test` builds motor_demo; then just test + just lint
+- [ ] FEATURES MS-7: set done if the plan branch's entry is on main after rebase, else say "flip MS-7 after the plan lands" in the ready note
+- [ ] `git rm HANDOFF.md`, `tpm work ready`
+
+## Decisions
+
+- Flux state is x = ψ − ψm(θ) (relative to the magnet flux): no f32 cancellation of the small winding flux against λ.
+- The step is an increment (E − I via expm1 and half angles, rotation − I): rounding scales with the change per step; at 1 µs the error fell from 1e-4 to 3e-6 of peak, and the old IPM discretisation test error went from 2.4e-3 A to 2.5e-4 A.
+- Machine Jacobian from the tables' in-cell gradient (no Jacobian tables): with the exact Jacobian of the interpolant the step is exponential Rosenbrock-Euler, second order.
+- Frames are two-axis (star without neutral). Zero sequence / open winding / SRM phases need an n×n step (no 2×2 closed form): left for MS-16/MS-21.
+- No `thermal`/`nvh` cargo features yet: their layers are empty slots (levels `Off`), and cfg'd pub fields would break feature unification; the features come with content (MS-3, MS-28). `maps` is the one feature now.
+- Motor keeps its own `magnetic_energy_j` formula (from Ld, Lq and the truth currents) to stay bit-compatible; Plant's uses the map's field energy.
+- Perf on gpd-omarchy, best of 15 pinned: MS-1 208-215 ns/step, new 224 ns/step (+5-8 %).
 
 ## Gotchas
 
-- `just test` fails today in motor_demo: wire_weaver main has API-39 `ObserveMode::Samples`; the fix is on branch s/18oct2026-batching-docs (another session). Test with `cargo nextest run -p motor_sim` until it lands, then rebase.
-- A/B timing harness outside the repo: $CLAUDE_JOB_DIR/tmp/bench (base = detached worktree of 424efa3). gpd-omarchy baseline ~155-170 ns/step at 10 µs.
-- MS-8 bench (session ms-bench) not on main yet; add rows after rebasing.
+- `just test` fails today in motor_demo: wire_weaver main has API-39 `ObserveMode::Samples`; the fix is on branch s/18oct2026-batching-docs (another session, ready to land). Test with `cargo nextest run -p motor_sim` until it lands, then rebase.
+- A/B timing harness outside the repo: $CLAUDE_JOB_DIR/tmp/bench (base = detached worktree of 424efa3 at $CLAUDE_JOB_DIR/tmp/base, its version patched to 0.0.99 to avoid a lockfile collision; `git worktree remove --force` it at the end). The PC is shared: pin with taskset and take the best of many runs.

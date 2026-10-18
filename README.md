@@ -4,6 +4,8 @@ Deterministic, `no_std` electric motor simulator in pure Rust, for testing motor
 
 - PMSM in dq, solved exactly per PWM period, with an average inverter, rotor mechanics and loads (constant,
   viscous, fan, second inertia through a spring, time profile, dyno speed, locked rotor).
+- A layered core: `Plant` takes any machine with flux as state (full inductance matrix, stationary frame, saturated
+  flux maps on uniform tables), and a PWM carrier makes the step independent of the PWM period.
 - The true state (`Truth`) is kept apart from what a controller measures (`Sensors`: current and DC link ADCs with
   offsets, noise and quantisation, encoder, halls). Faults break only the sensor and inverter paths.
 - Same parameters and seed, same run on every target. `libm` is the only dependency.
