@@ -7,8 +7,8 @@ Guidance for AI code assistants working in this repository.
 `motor_sim` is a pure Rust, `no_std`, `libm`-only simulator of electric motors for testing motor controllers in
 software: the plant (a PMSM in dq first), an average inverter, mechanics and loads, with sensors (ADC quantisation,
 noise, offsets, encoder/hall) and seeded faults kept apart from the true physics. It is deterministic: the same
-parameters and seed give the same run on every target. Design background: tpm `prj/P2401-wireweaver/design/multi_observe.md`
-("Motor model crate").
+parameters and seed give the same run on every target. Design background: tpm `hobby/P2630-motor-sim/design/architecture.md`
+(architecture and roadmap), earlier `prj/P2401-wireweaver/design/multi_observe.md` ("Motor model crate").
 
 The repo is a Cargo workspace:
 
@@ -17,7 +17,8 @@ The repo is a Cargo workspace:
   served as a [wire_weaver](https://github.com/vhrdtech/wire_weaver) device whose ~50 variables a host observes, and
   the `motor_demo` CLI. Moved here from wire_weaver's `examples/`; its docs page stays in wire_weaver
   (`docs/examples/motor_demo.md`, `docs/api/observing.md`), update it there when the demo changes what it shows.
-- Later: a simulator GUI (DEMO-2). Heavy std/GUI dependencies go into such crates, never into `motor_sim`.
+- Later (FEATURES roadmap): `motor_model`, `motor_ident`, `motor_rig`, `motor_fem`, the `motor` CLI, `motor_py` and the
+  Bevy twin `motor_twin` (DEMO-2). Heavy std/GUI dependencies go into such crates, never into `motor_sim`.
 
 The demo depends on wire_weaver crates by path, from a checkout next to this one (`../wire_weaver`, declared once
 in the root `[workspace.dependencies]`). `just deps-pull` brings it to its main; when a wire_weaver change breaks
@@ -25,8 +26,9 @@ the demo, fix the demo here. Observe tests count per second of simulated device 
 simulation falls behind real time on a busy PC); `.config/nextest.toml` keeps the 3 s default test limit with one
 override for them.
 
-`FEATURES.md` is the feature tracker (ids `MS-n` for the plant, `DEMO-n` for the demo and apps, never renumbered or reused; name them with a short slug when
-talking to people). Update the matching item in the same change.
+`FEATURES.md` is the feature tracker (ids `MS-n` for the real-time plant, `MDL-n` model data, `CAL-n` calibration, `FEM-n`
+offline field tools, `HIL-n` HIL/FPGA/batch, `DEMO-n` the demo and apps, `CLI-n`, `EDU-n` education; never renumbered or
+reused; name them with a short slug when talking to people). Update the matching item in the same change.
 
 ## Commands
 
