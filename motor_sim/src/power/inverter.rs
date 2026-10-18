@@ -1,30 +1,11 @@
 //! Average inverter: what the controller commands, turned into leg duties and then into phase voltages.
 
+use crate::drive::Drive;
 use crate::faults::{InverterFaults, LegFault};
 use crate::rng::Rng;
 
 const SQRT3_2: f32 = 0.866_025_4;
 const INV_SQRT3: f32 = 0.577_350_3;
-
-/// What the controller applies for one step. Voltage commands go through the same duty stage as
-/// [`Drive::Duty`] (min-max zero sequence, i.e. SVPWM), so they saturate at the inverter hexagon like the real
-/// thing.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Drive {
-    /// High-side duty of legs a, b, c, 0..=1 (clamped).
-    Duty([f32; 3]),
-    /// Stationary-frame voltage, V (amplitude-invariant Clarke, so |v| up to Vdc/√3 is linear).
-    AlphaBeta {
-        /// α voltage, V.
-        v_alpha_v: f32,
-        /// β voltage, V.
-        v_beta_v: f32,
-    },
-    /// Phase-to-neutral voltages a, b, c, V; any common part is ignored (isolated star point).
-    PhaseVolts([f32; 3]),
-    /// All switches off. L1 treats the phases as open: the currents drop to zero at once (no diode conduction).
-    Off,
-}
 
 /// Leg duties for `drive`, before faults. `None` for [`Drive::Off`].
 pub(crate) fn duties(drive: &Drive, vdc_v: f32) -> Option<[f32; 3]> {

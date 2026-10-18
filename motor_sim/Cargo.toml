@@ -9,3 +9,8 @@ repository.workspace = true
 
 [dependencies]
 libm.workspace = true
+
+[features]
+default = ["maps"]
+# Machines from tables (Grid2, Grid3, MapMachine).
+maps = []
