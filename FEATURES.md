@@ -115,9 +115,9 @@ Status: ✅ done, 🚧 partial, 🐛 buggy, 📋 planned, 💡 idea.
 
 ## Calibration (`CAL`)
 
-- 💡 **CAL-1 log format**: one format for virtual and real rig logs behind a `LogWriter`/`LogReader` pair: Parquet per
-  stream group plus a TOML sidecar (experiment, rig, sensors, motor, temperatures, seed, versions) first; an eventfull
-  format as a second backend once it meets the requirements in the design note.
+- 💡 **CAL-1 log format**: one format for virtual and real rig logs behind a `LogWriter`/`LogReader` pair: eventfull's
+  file format (a PC profile of the wire_weaver logbook format) as the archive, with an experiment metadata record
+  (experiment, rig, sensors, motor, temperatures, seed, versions); Parquet as an export.
 - 💡 **CAL-2 virtual rig**: a plant, a load motor, rig sensor models (torque sensor, encoder, probes, thermocouples,
   accelerometers, microphones) and experiment scripts writing rig-like logs.
 - 💡 **CAL-3 L1 identification**: R, Ld, Lq, λ, inertia, friction, encoder offset from virtual-rig experiments, with
@@ -138,8 +138,8 @@ Status: ✅ done, 🚧 partial, 🐛 buggy, 📋 planned, 💡 idea.
 - 💡 **CAL-14 stray-field mapping**: a robot arm or hand scanning the motor's external field with a 3D magnetic sensor,
   compared with the FEM exterior field (FEM-20) to correct magnet strength, magnetisation and assembly; a simulated
   scan (path, sensor noise, offset, orientation error) on the virtual rig first.
-- 💡 **CAL-15 logs in eventfull**: rig logs and sim traces opened in eventfull_timeline (Parquet import, sampled-series
-  tracks with min/max segmentation) from motor_rig and the twin.
+- 💡 **CAL-15 logs in eventfull**: rig logs and sim traces opened in eventfull_timeline from motor_rig and the twin,
+  hours of 100 kHz data zoomable through sampled-series tracks with min/max segmentation.
 
 ## Offline field tools (`FEM`)
 
