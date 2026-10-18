@@ -1,0 +1,16 @@
+[package]
+name = "motor_twin"
+version = "0.1.0"
+publish = false
+description = "The motor's digital twin in Bevy: a motor imported from CAD (motor_cad), rotor spinning, parts by role (DEMO-2)"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+bevy = { version = "0.20", default-features = false, features = ["3d", "png"] }
+bevy_egui = { version = "0.43", default-features = false, features = ["render", "default_fonts"] }
+clap = { workspace = true, features = ["derive"] }
+motor_cad = { path = "../motor_cad" }

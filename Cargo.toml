@@ -1,6 +1,8 @@
 [workspace]
 resolver = "3"
-members = ["motor_bench", "motor_cad", "motor_demo", "motor_demo_api", "motor_sim"]
+members = ["motor_bench", "motor_cad", "motor_demo", "motor_demo_api", "motor_sim", "motor_twin"]
+# motor_twin (Bevy) builds only when asked for: `just twin`, `cargo build -p motor_twin`
+default-members = ["motor_bench", "motor_cad", "motor_demo", "motor_demo_api", "motor_sim"]
 
 [workspace.package]
 authors = ["Roman Isaikin <romix.lab@gmail.com>"]
