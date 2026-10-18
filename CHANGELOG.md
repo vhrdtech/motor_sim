@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Changed
+
+- `motor_demo`: the `foc` level samples through wire_weaver's observe cells (API-50, `observe_cells = "root_foc"`):
+  each step writes the 21 values into a ring of atomics and commits the row, `poll_properties` reads it; `control`
+  stays on its sampler, so the demo runs both paths. Same wire and rates: `observe --foc samples:20ms` sends
+  811.6 kB/s in 781 updates/s, as before. Needs wire_weaver with observe cells (its branch
+  `s/18oct2026-observe-cells`, landing together).
+
 ## 2026-10-18: motor_sim 0.2.0, motor_demo 0.1.2, motor_bench 0.1.1
 
 ### Added

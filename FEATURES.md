@@ -213,8 +213,9 @@ Status: ✅ done, 🚧 partial, 🐛 buggy, 📋 planned, 💡 idea.
   quantities, on simulated time faster or slower than real time, in-process and over UDP; the `motor_demo` CLI
   observes chosen sets at chosen rates and shows achieved rates, bytes against the budget, missed sends and the cost
   as one `StreamData` per value. Every `foc` property and `control`'s 13 measured values are `+observe+batched`
-  (API-41/API-39): `samples:20ms` observes every sample in batches instead of one update each, `device.rs`'s
-  `sample_foc`/`sample_control` feed the batcher once per tier. Moved from wire_weaver (its EX-11) with history
+  (API-41/API-39): `samples:20ms` observes every sample in batches instead of one update each; `foc` writes its
+  values into wire_weaver observe cells (API-50, a ring of atomics, as a FOC interrupt would), `control` feeds its
+  sampler once per tier, the same wire either way. Moved from wire_weaver (its EX-11) with history
   (P2401, 18 Oct 2026); docs page: wire_weaver `docs/examples/motor_demo.md`, batching: wire_weaver
   `docs/api/batching.md`.
 - 💡 **DEMO-2 Bevy twin**: `motor_twin`, a 3D digital twin in Bevy on top of `motor_sim`, connected through the HIL-13

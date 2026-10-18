@@ -10,6 +10,10 @@
 //! turn them into `ww_si` quantities at the prefix and storage the API's docs give each property, and setters take
 //! whatever prefix and storage the host sends. A value is marked changed when its quantity changed, so noise below
 //! the property's resolution sends nothing.
+//!
+//! Every sample of the `+batched` properties goes to the batches a host observing in `Samples` mode gets (API-39):
+//! `foc` through observe cells (API-50, a ring of atomics written value by value, as a FOC interrupt would), `control`
+//! through its sampler (`sample(t, ControlSamples { .. })`), so the demo runs both paths with the same wire.
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -45,6 +49,9 @@ pub const MAX_MESSAGE_LEN: usize = 4096;
 /// as the biggest batch. `Quantity<U>`'s size doesn't depend on `U`, so any property's `Timed<..>` does.
 const SCRATCH_BYTES: usize =
     ww_stream::batch::scratch_bytes::<ww_stream::batch::Timed<Ampere>>(api_impl::OBSERVE_BATCH);
+
+/// Rows of the `foc` level's observe cells: `poll_properties` runs after every step, so one batch is plenty.
+const FOC_RING: usize = api_impl::OBSERVE_BATCH;
 
 /// Observe limits of the demo, in simulated time: one PWM period is the shortest period, so the 25 kHz tier can be
 /// observed at its full rate (when the link keeps up), 20 kB/s per level when the host doesn't ask for a budget.
@@ -131,12 +138,18 @@ pub struct Device {
     control: ControlQuantities,
     telemetry: TelemetryQuantities,
     prev_real_time_factor: f32,
-    pub observe: api_impl::ObserveState,
+    /// The `foc` level's observe cells (API-50): written each step, read by `poll_properties` through the reader
+    /// `observe` holds.
+    foc_cells: Arc<api_impl::RootFocCells<FOC_RING>>,
+    pub observe: api_impl::ObserveState<api_impl::ObserveBatches<'static>>,
 }
 
 impl Device {
     pub fn new(opts: Options) -> Self {
         let (params, current_max) = motor(opts.preset);
+        let foc_cells = Arc::new(api_impl::RootFocCells::new());
+        let foc_reader =
+            ww_stream::batch::CellsReader::shared(foc_cells.clone()).expect("a new reader");
         let mut d = Device {
             motor: Motor::new(params, opts.seed),
             ctl: Controller::new(Config::from_params(&params, current_max)),
@@ -152,9 +165,10 @@ impl Device {
             control: ControlQuantities::new(&ControlValues::default()),
             telemetry: TelemetryQuantities::new(&TelemetryValues::default()),
             prev_real_time_factor: 0.0,
+            foc_cells,
             observe: api_impl::ObserveState::new(
                 LIMITS,
-                api_impl::ObserveBatches::new(ww_stream::batch::DEFAULT_POLICY),
+                api_impl::ObserveBatches::new(ww_stream::batch::DEFAULT_POLICY, foc_reader),
             ),
         };
         d.motor.set_load(sim_load(opts.load));
@@ -230,8 +244,8 @@ impl Device {
 }
 
 /// The values of one tier as quantities: converted from the tier's `f32` values after each run of the tier, the
-/// ones that differ from the previous run ([Same]) marked changed, and kept for the getters. Shared by [tier]'s two
-/// arms (with and without `sample(..)`): a macro can't nest a field's own repetition inside an optional one for a
+/// ones that differ from the previous run ([Same]) marked changed, and kept for the getters. Shared by [tier]'s
+/// arms (without and with `sample(..)` or `cells(..)`): a macro can't nest a field's own repetition inside an optional one for a
 /// variable (`sample`'s) that isn't repeated the same number of times.
 macro_rules! tier_common {
     ($values:ident: $Values:ty => $Quantities:ident;
@@ -301,9 +315,32 @@ macro_rules! tier {
             }
         }
     };
+    ($values:ident: $Values:ty => $Quantities:ident, $mark:ident, cells($cells:ident);
+        $($name:ident: $ty:ty = |$v:ident| $conv:expr, $get:ident, $changed:ident;)*) => {
+        tier_common!($values: $Values => $Quantities;
+            $($name: $ty = |$v| $conv, $get, $changed;)*);
+
+        impl Device {
+            fn $mark(&mut self) {
+                let now = $Quantities::new(&self.ctl.$values);
+                $(
+                    if !now.$name.same(&self.$values.$name) {
+                        self.$changed();
+                    }
+                )*
+                self.$values = now;
+                // Every sample into the level's observe cells (API-50), value by value, then the row committed:
+                // the gate in `commit` decides what a host's `Samples` request keeps. A firmware keeps the writer
+                // in its interrupt; the simulator steps from the event loop, so it takes it for the row.
+                let mut w = self.$cells.writer().expect("one writer: only the step writes");
+                $(w.$name(now.$name);)*
+                w.commit(Second::micro(self.now_us() as u32));
+            }
+        }
+    };
 }
 
-tier!(foc: FocValues => FocQuantities, mark_foc, sample(root_foc, FocSamples);
+tier!(foc: FocValues => FocQuantities, mark_foc, cells(foc_cells);
     i_a: Ampere = |v| Ampere::quantize(v.i_a, Prefix::Milli, NumericBaseType::I32),
         get_foc_i_a, mark_changed_foc_i_a;
     i_b: Ampere = |v| Ampere::quantize(v.i_b, Prefix::Milli, NumericBaseType::I32),
@@ -406,7 +443,7 @@ tier!(telemetry: TelemetryValues => TelemetryQuantities, mark_telemetry;
 
 /// Setpoints, sim settings and methods
 impl Device {
-    fn observe_state(&mut self) -> &mut api_impl::ObserveState {
+    fn observe_state(&mut self) -> &mut api_impl::ObserveState<api_impl::ObserveBatches<'static>> {
         &mut self.observe
     }
 
@@ -652,6 +689,7 @@ pub mod api_impl {
         server = true, no_alloc = true, use_async = true,
         method_model = "_=immediate",
         property_model = "_=get_set",
+        observe_cells = "root_foc",
         // debug_to_file = "../../target/motor_demo_server.rs"
     );
 }
