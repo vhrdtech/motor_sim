@@ -1,32 +1,37 @@
-//! Prints the parts a STEP file imports to: `cargo run --release -p motor_cad --example dump -- FILE`
+//! Classifies a STEP file and prints the report: `cargo run --release -p motor_cad --example dump -- FILE`
 fn main() {
-    let path = std::env::args().nth(1).expect("STEP file");
+    let path = std::path::PathBuf::from(std::env::args().nth(1).expect("STEP file"));
     let t = std::time::Instant::now();
-    let m = motor_cad::step_read::read_step_file(path.as_ref()).unwrap();
+    let m = motor_cad::step_read::read_step_file(&path).unwrap();
+    let t_read = t.elapsed().as_secs_f64();
+    let o = motor_cad::overrides::Overrides::load_beside(&path).unwrap();
+    let c = motor_cad::classify::classify(&m, &o);
+    let title = path.file_name().unwrap().to_string_lossy();
+    print!("{}", motor_cad::report::markdown(&title, &m, &c));
+    if std::env::var_os("MOTOR_CAD_DEBUG").is_some() {
+        for (i, (p, f)) in m.parts.iter().zip(&c.features).enumerate() {
+            println!(
+                "{i:3} {:<34} cov {:.2} order {:3} amp {:.3} genus {:?} fill {:.2} r {:.1}..{:.1} rc {:.1} z {:.1}..{:.1} ext {:.1}/{:.1}/{:.1} along {:.2}",
+                p.name.chars().take(34).collect::<String>(),
+                f.coverage,
+                f.order,
+                f.order_amp,
+                f.genus,
+                f.fill,
+                f.r_min * 1e3,
+                f.r_max * 1e3,
+                f.r_c * 1e3,
+                f.z_min * 1e3,
+                f.z_max * 1e3,
+                f.extents[0] * 1e3,
+                f.extents[1] * 1e3,
+                f.extents[2] * 1e3,
+                f.along_axis
+            );
+        }
+    }
     println!(
-        "schema {} | system {} | unit {} m | {} parts | {:.2} s",
-        m.schema,
-        m.system,
-        m.unit_m,
-        m.parts.len(),
-        t.elapsed().as_secs_f64()
+        "\nread {t_read:.2} s, classify {:.2} s",
+        t.elapsed().as_secs_f64() - t_read
     );
-    for n in &m.notes {
-        println!("note: {n}");
-    }
-    for p in &m.parts {
-        let bb = p.mesh.aabb();
-        println!(
-            "{:<40} inst={:<24} path={:<30} body {}/{} col={:?} layer={:?} tris={} size_mm={:?}",
-            p.name,
-            p.instance,
-            p.path.join("/"),
-            p.body + 1,
-            p.bodies,
-            p.colour.map(|c| c.map(|x| (x * 100.0).round() / 100.0)),
-            p.layer,
-            p.mesh.triangle_count(),
-            bb.size().map(|x| (x * 1e4).round() / 10.0)
-        );
-    }
 }

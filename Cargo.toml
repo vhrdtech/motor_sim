@@ -29,3 +29,30 @@ ww_client_server = { path = "../wire_weaver/ww_stdlib/ww_client_server", default
 ww_device = { path = "../wire_weaver/ww_device" }
 ww_si = { path = "../wire_weaver/ww_stdlib/ww_si", default-features = false }
 ww_stream = { path = "../wire_weaver/ww_stream", default-features = false }
+
+# motor_cad's B-rep kernel, STEP parser and its own geometry run tens of times slower unoptimised: optimise them in
+# dev builds too, so tests stay inside nextest's 3 s
+[profile.dev.package.motor_cad]
+opt-level = 3
+[profile.dev.package.monstertruck-core]
+opt-level = 3
+[profile.dev.package.monstertruck-geometry]
+opt-level = 3
+[profile.dev.package.monstertruck-topology]
+opt-level = 3
+[profile.dev.package.monstertruck-traits]
+opt-level = 3
+[profile.dev.package.monstertruck-modeling]
+opt-level = 3
+[profile.dev.package.monstertruck-meshing]
+opt-level = 3
+[profile.dev.package.monstertruck-mesh]
+opt-level = 3
+[profile.dev.package.monstertruck-io]
+opt-level = 3
+[profile.dev.package.step-p21]
+opt-level = 3
+[profile.dev.package.spade]
+opt-level = 3
+[profile.dev.package.nom]
+opt-level = 3
