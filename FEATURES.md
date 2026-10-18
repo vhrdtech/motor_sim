@@ -27,14 +27,20 @@ Status: ✅ done, 🚧 partial, 🐛 buggy, 📋 planned, 💡 idea.
   shorted switch).
 - 💡 **MS-6 diode conduction**: with the inverter off or in dead time, the back-EMF drives current through the
   freewheeling diodes once it exceeds the DC link, charging it (today the currents drop to zero).
-- 📋 **MS-7 layered flux-state engine**: the plant as layers (drive, power stage, electromagnetics, mechanics, thermal,
-  NVH, sensors) with per-layer levels and cargo features, layer boundaries as plain data so a layer can later run
-  elsewhere (HIL-13); a magnetic n-port generic over its frame (dq0 or phase) with flux as state, current from an
-  inverse map and an exponential step around the local incremental inductance (closed form like today, linear maps
-  reproduce MS-1); inverter volt-seconds over any interval so the step is independent of the PWM period; multirate
-  skeleton; the API may change, every MS-1 capability stays possible and tested.
+- ✅ **MS-7 layered flux-state engine**: `Plant<M: Machine>` (`Motor` = `Plant<PmsmParams>`) runs the plant as
+  layers (drive, power stage, electromagnetics, mechanics, thermal and NVH slots at integer rate ratios, sensors),
+  each its own `Copy` state exchanging plain-data values once per base tick, so a layer can later run elsewhere
+  (HIL-13). Electromagnetics is a magnetic two-port generic over its frame (`Dq`, `AlphaBeta`) with flux relative to
+  the magnets as state, current from the map, torque from the co-energy and an exponential Rosenbrock step around
+  the full 2×2 incremental inductance in closed form, formed as an increment (exact for linear maps, reproducing
+  MS-1 to 1e-6 of the peak; second order with maps): `PmsmParams`, `LinearDq`, `LinearAlphaBeta`, `MapMachine` on
+  `Grid2`/`Grid3` (feature `maps`). PWM `Carrier` volt-seconds over any interval, so the step is independent of the
+  PWM period. Tests: `tests/engine.rs` against MS-1, fine RK4 at 1-50 µs, energy balance with maps, carrier vs
+  per-period steps, bit-identical replay. Not yet: a zero-sequence/n-phase frame (MS-16, MS-21) and per-layer cargo
+  features beyond `maps` (they come with the thermal and NVH content) (P2630#18oct-1240).
 - ✅ **MS-8 cost bench**: `motor_bench` (`just bench`), std only: ns per `Motor::step` per configuration (preset ×
-  load × dt × sensors, thread CPU time) and the thumbv7em code size of `motor_sim` per cargo feature, against a
+  load × dt × sensors, thread CPU time), MS-7 engine rows (full L, stationary frame, carrier, 2D and 3D maps) and the
+  thumbv7em code size of `motor_sim` per cargo feature, against a
   committed `baseline.tsv` that every new configuration adds a row to and that flags a >20% regression.
 - 💡 **MS-9 saturation maps**: ψd, ψq (id, iq) with cross-saturation and incremental inductances from tables (uniform
   grids), saliency that moves with load (for HF-injection sensorless tests).
@@ -94,7 +100,8 @@ Status: ✅ done, 🚧 partial, 🐛 buggy, 📋 planned, 💡 idea.
   process, cross-check only) and compared with MS-33 waveforms and losses.
 - 💡 **MS-35 Rust circuit solver**: a pure-Rust nonlinear circuit solver (MNA, companion models, adaptive step) for
   power-stage circuits, the long-term path that replaces the ngspice cross-check.
-- 💡 **MS-36 simulation time control**: one explicit simulated clock: faster or slower than real time, pause, single
+- 🚧 **MS-36 simulation time control**: one explicit simulated clock (in the core: `SimClock`, `Plant::snapshot` and
+  `restore` with bit-identical replay, MS-7): faster or slower than real time, pause, single
   step (base step, PWM period, control period), slow motion, snapshots of the whole plant state and rewind by
   deterministic replay (seed + input log); in the core API, the CLI and the twin.
 

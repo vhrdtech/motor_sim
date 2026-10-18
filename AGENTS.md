@@ -20,7 +20,7 @@ The repo is a Cargo workspace:
 - Later (FEATURES roadmap): `motor_model`, `motor_ident`, `motor_rig`, `motor_fem`, the `motor` CLI, `motor_py` and the
   Bevy twin `motor_twin` (DEMO-2). Heavy std/GUI dependencies go into such crates, never into `motor_sim`.
 - `motor_bench/`: `just bench` (MS-8), std only, outside `motor_sim`'s own dependencies. Measures ns per
-  `Motor::step` per configuration and the `thumbv7em` code size of `motor_sim` per cargo feature, against
+  `Motor::step` per configuration (plus the MS-7 engine rows) and the `thumbv7em` code size of `motor_sim` per cargo feature, against
   `motor_bench/baseline.tsv` (committed, machine-specific), flagging a >20% regression; `-- --update` re-measures
   and rewrites it after a deliberate cost change.
 

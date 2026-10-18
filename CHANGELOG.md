@@ -15,6 +15,8 @@
 - `SimClock` (`Plant::clock`: base ticks and simulated time) and `Plant::snapshot`/`restore` (`PlantState`, a copy
   of the whole state) for pause, step, rewind and replay; a restored run repeats bit for bit.
 - `ThermalParams`/`NvhParams` with their levels (`Off` for now), run at integer rate ratios in a fixed order.
+- `motor_bench`: MS-7 engine rows (full inductance matrix, stationary frame, carrier, 2D and 3D maps) and the code
+  size without `maps`; baseline re-measured on a quiet gpd-omarchy after the engine change (+8-14% per L1 step).
 
 ### Changed
 

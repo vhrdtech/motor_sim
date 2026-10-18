@@ -24,7 +24,10 @@ use std::process::Command;
 
 use anyhow::{Context, bail, ensure};
 use console::style;
-use motor_sim::{Drive, Load, Motor, MotorParams, presets};
+use motor_sim::{
+    Axis, Carrier, Drive, Grid2, Grid3, LinearAlphaBeta, LinearDq, Load, Machine, MapMachine,
+    Motor, MotorParams, Plant, PmsmParams, presets,
+};
 
 /// A measurement over this factor of its baseline is a regression (1.20 = 20%).
 const REGRESSION_FACTOR: f64 = 1.20;
@@ -101,39 +104,42 @@ fn time_cases() -> Vec<TimeCase> {
     cases
 }
 
-/// Minimum ns per [`Motor::step`] for one configuration over [`REPEATS`] trials, each step driven from the
-/// motor's own angle like a controller would (see the crate-level example in `motor_sim`), so the optimizer
-/// cannot fold the loop away.
+/// Minimum ns per [`Motor::step`] for one configuration over [`REPEATS`] trials.
 fn ns_per_step(case: &TimeCase) -> f64 {
     let mut params = (case.preset)();
     if !case.sensors_on {
         // `Motor::step` always samples the sensors; "off" is the cheapest a controller could configure them
-        // (no noise, no encoder) rather than a code path that is skipped. See HANDOFF.md.
+        // (no noise, no encoder) rather than a code path that is skipped.
         params.sensors.current_noise_a = 0.0;
         params.sensors.vdc_noise_v = 0.0;
         params.sensors.encoder_cpr = 0;
     }
     let mut motor = Motor::new(params, 42);
     motor.set_load(case.load);
+    ns_per_plant_step(&mut motor, case.dt_s)
+}
 
-    let step = |motor: &mut Motor| {
-        let theta = motor.truth().theta_e;
+/// Minimum ns per [`Plant::step`] over [`REPEATS`] trials, each step driven from the plant's own angle like a
+/// controller would (see the crate-level example in `motor_sim`), so the optimizer cannot fold the loop away.
+fn ns_per_plant_step<M: Machine>(plant: &mut Plant<M>, dt_s: f32) -> f64 {
+    let step = |plant: &mut Plant<M>| {
+        let theta = plant.truth().theta_e;
         let drive = Drive::AlphaBeta {
             v_alpha_v: -3.0 * theta.sin(),
             v_beta_v: 3.0 * theta.cos(),
         };
-        motor.step(&drive, case.dt_s);
-        black_box(motor.truth().i_q);
+        plant.step(&drive, dt_s);
+        black_box(plant.truth().i_q);
     };
 
     for _ in 0..WARMUP_STEPS {
-        step(&mut motor);
+        step(plant);
     }
     let mut best = f64::INFINITY;
     for _ in 0..REPEATS {
         let start = thread_cpu_time_ns();
         for _ in 0..MEASURED_STEPS {
-            step(&mut motor);
+            step(plant);
         }
         let ns = (thread_cpu_time_ns() - start) as f64 / MEASURED_STEPS as f64;
         best = best.min(ns);
@@ -141,17 +147,154 @@ fn ns_per_step(case: &TimeCase) -> f64 {
     best
 }
 
-/// A cargo feature combination of `motor_sim` to measure code size for. Today `motor_sim` has no features of its
-/// own, so this is just the default build; MS-7's layers will add rows here as they land.
+/// A saturating map from one field energy, W̃ = ½(x_d²/Ld + x_q²/Lq) + k/4·|x|⁴, optionally with a 6th-harmonic
+/// ripple on 1/Ld: the current doubles relative to linear around |x| = 30 mWb. Returns (i_d, i_q, W̃).
+fn saturating(p: &PmsmParams, x: [f32; 2], theta_e: f32, ripple: f32) -> [f32; 3] {
+    let k = 0.5 / (p.ld_h * 9e-4);
+    let gd = (1.0 + ripple * (6.0 * theta_e).cos()) / p.ld_h;
+    let gq = 1.0 / p.lq_h;
+    let s = x[0] * x[0] + x[1] * x[1];
+    [
+        gd * x[0] + k * s * x[0],
+        gq * x[1] + k * s * x[1],
+        0.5 * (gd * x[0] * x[0] + gq * x[1] * x[1]) + 0.25 * k * s * s,
+    ]
+}
+
+const MAP_SPAN_WB: f32 = 0.06;
+const MAP_NODES: u32 = 33;
+const MAP_THETA_NODES: u32 = 30;
+
+/// Tables of [`saturating`] over (x_d, x_q) and, with `theta_nodes` > 0, the electrical angle over 60°.
+fn map_tables(p: &PmsmParams, theta_nodes: u32) -> [Vec<f32>; 3] {
+    let ax = Axis::new(-MAP_SPAN_WB, MAP_SPAN_WB, MAP_NODES).expect("axis");
+    let az = Axis::periodic(0.0, std::f32::consts::FRAC_PI_3, theta_nodes.max(2)).expect("axis");
+    let mut t = [vec![], vec![], vec![]];
+    for a in 0..ax.len() {
+        for b in 0..ax.len() {
+            for c in 0..theta_nodes.max(1) as usize {
+                let (th, ripple) = if theta_nodes > 0 {
+                    (az.node(c), 0.05)
+                } else {
+                    (0.0, 0.0)
+                };
+                let v = saturating(p, [ax.node(a), ax.node(b)], th, ripple);
+                for k in 0..3 {
+                    t[k].push(v[k]);
+                }
+            }
+        }
+    }
+    t
+}
+
+/// Engine configurations beyond the presets' linear machine (MS-7), each at a 10 µs step with sensors on: the
+/// full inductance matrix, the stationary frame, 2D and 3D flux maps, and the PWM carrier.
+fn engine_rows(baseline: &BTreeMap<String, f64>, rows: &mut Vec<Row>) {
+    let dt = 10e-6;
+    let fan = Load::Fan {
+        k_nms2_per_rad2: 2e-7,
+    };
+    let vesc = presets::vesc_hobby_outrunner();
+    let ipm = presets::ipm();
+
+    let mut plant = Plant::new(
+        vesc.with_machine(LinearDq::from_pmsm(&vesc.machine, 1e-6)),
+        42,
+    );
+    plant.set_load(fan);
+    let ns = ns_per_plant_step(&mut plant, dt);
+    report(
+        "time.engine.vesc_lineardq.dt10".into(),
+        ns,
+        "ns",
+        baseline,
+        rows,
+    );
+
+    let mut plant = Plant::new(vesc.with_machine(LinearAlphaBeta(vesc.machine)), 42);
+    plant.set_load(fan);
+    let ns = ns_per_plant_step(&mut plant, dt);
+    report(
+        "time.engine.vesc_alphabeta.dt10".into(),
+        ns,
+        "ns",
+        baseline,
+        rows,
+    );
+
+    let mut motor = Motor::new(vesc, 42);
+    motor.set_load(fan);
+    motor.set_carrier(Some(Carrier::center(25e3)));
+    let ns = ns_per_plant_step(&mut motor, dt);
+    report(
+        "time.engine.vesc_carrier25k.dt10".into(),
+        ns,
+        "ns",
+        baseline,
+        rows,
+    );
+
+    let p = ipm.machine;
+    let ax = Axis::new(-MAP_SPAN_WB, MAP_SPAN_WB, MAP_NODES).expect("axis");
+    let t2 = map_tables(&p, 0);
+    let g2 = |k: usize| Grid2::new(ax, ax, &t2[k]).expect("grid");
+    let machine: MapMachine<Grid2> = MapMachine::new(
+        p.pole_pairs,
+        p.rs_ohm,
+        [p.flux_linkage_wb, 0.0],
+        [g2(0), g2(1)],
+        g2(2),
+    );
+    let mut plant = Plant::new(ipm.with_machine(machine), 42);
+    plant.set_load(fan);
+    let ns = ns_per_plant_step(&mut plant, dt);
+    report(
+        "time.engine.ipm_map2d.dt10".into(),
+        ns,
+        "ns",
+        baseline,
+        rows,
+    );
+
+    let az = Axis::periodic(0.0, std::f32::consts::FRAC_PI_3, MAP_THETA_NODES).expect("axis");
+    let t3 = map_tables(&p, MAP_THETA_NODES);
+    let g3 = |k: usize| Grid3::new(ax, ax, az, &t3[k]).expect("grid");
+    let machine: MapMachine<Grid3> = MapMachine::new(
+        p.pole_pairs,
+        p.rs_ohm,
+        [p.flux_linkage_wb, 0.0],
+        [g3(0), g3(1)],
+        g3(2),
+    );
+    let mut plant = Plant::new(ipm.with_machine(machine), 42);
+    plant.set_load(fan);
+    let ns = ns_per_plant_step(&mut plant, dt);
+    report(
+        "time.engine.ipm_map3d.dt10".into(),
+        ns,
+        "ns",
+        baseline,
+        rows,
+    );
+}
+
+/// A cargo feature combination of `motor_sim` to measure code size for.
 struct SizeCase {
     name: &'static str,
     cargo_args: &'static [&'static str],
 }
 
-const SIZE_CASES: &[SizeCase] = &[SizeCase {
-    name: "codesize.default",
-    cargo_args: &[],
-}];
+const SIZE_CASES: &[SizeCase] = &[
+    SizeCase {
+        name: "codesize.default",
+        cargo_args: &[],
+    },
+    SizeCase {
+        name: "codesize.no_maps",
+        cargo_args: &["--no-default-features"],
+    },
+];
 
 /// `.text` bytes of `motor_sim`'s compiled rlib for `thumbv7em-none-eabihf`: not a linked, dead-code-eliminated
 /// binary, but consistent run to run, which is what a regression check needs.
@@ -306,6 +449,7 @@ fn main() -> anyhow::Result<()> {
         let ns = ns_per_step(&case);
         report(case.name, ns, "ns", &baseline, &mut rows);
     }
+    engine_rows(&baseline, &mut rows);
 
     println!("\nthumbv7em-none-eabihf .text size of motor_sim, per cargo feature:\n");
     for case in SIZE_CASES {
