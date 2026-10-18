@@ -213,17 +213,28 @@ Status: ✅ done, 🚧 partial, 🐛 buggy, 📋 planned, 💡 idea.
 - 💡 **DEMO-2 Bevy twin**: `motor_twin`, a 3D digital twin in Bevy on top of `motor_sim`, connected through the HIL-13
   transport (plant in process, in another process, on a HIL plant or a real rig): the motor from FEM-10 geometry,
   rotor in slow motion or strobe, dq phasors, heat colours, the load, egui plots and controls, time controls (MS-36);
-  its heavy dependencies are why the demo lives in this repo.
+  its heavy dependencies are why the demo lives in this repo. 🚧 First slice (P2630#18oct-1242f): `motor_twin` loads
+  a motor from CAD (DEMO-13), the rotating group spinning kinematically at a set rpm, role toggles, exploded view,
+  cutaway, orbit camera, egui controls, headless PNG screenshots; the state source (HIL-13) is next.
 - 💡 **DEMO-8 field view**: flux density on the cross-section from FEM field tables, live with the operating point.
 - 💡 **DEMO-9 twin sound**: MS-29 microphone signals played as spatial audio.
 - 💡 **DEMO-10 rig scene**: the P2439 stand with sensors, cameras and lights; a real rig's live data beside the twin.
 - 💡 **DEMO-11 WASM**: core and twin in the browser, nothing to install.
 - 💡 **DEMO-12 replay and faults**: deterministic replay from seed and input log, fault injection from the UI.
+- 🚧 **DEMO-13 motor from CAD**: `motor_cad`, a pure-Rust import of STEP assemblies (monstertruck for B-rep and
+  meshing, our own pass for colours, layers and units) into parts classified by role (shaft, rotor, magnet, stator,
+  winding, bearing, housing, fastener, PCB, wiring, sensor) from layered evidence with a confidence: an override file,
+  `[role]` tags (the naming convention for Roman's SolidWorks/FreeCAD models), keywords in several languages, colours,
+  and geometry about the motor axis (slot and pole counts, rings of similar parts, bearings from balls); a report, a
+  scene as glTF with roles in the extras; parametric test motors (12N14P outrunner, NEMA17 hybrid stepper) written to
+  STEP. Fused single solids are not split (P2630).
 
 ## CLI (`CLI`)
 
 - 💡 **CLI-2 motor CLI**: `motor` with model build/check/show, fem, ident, rig, validate and bench subcommands
   (completions, colour, progress bars, `--version`).
+- ✅ **CLI-3 motor_cad CLI**: `motor_cad import FILE [--glb] [--report]`, `init-overrides`, `gen`; completions with
+  STEP files, colour, spinner, `--version` with SHA (DEMO-13).
 
 ## Education (`EDU`)
 

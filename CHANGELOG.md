@@ -6,6 +6,14 @@
 
 ### Added
 
+- `motor_cad` (DEMO-13, CLI-3): STEP assemblies into classified motor parts (names, instances, colours, layers,
+  units; roles with confidence and reasons; `<model>.motor.toml` overrides), a Markdown report, the scene as `.glb`,
+  parametric 12N14P outrunner and NEMA17 stepper written to STEP; the `motor_cad` CLI (`import`, `init-overrides`,
+  `gen`).
+- `motor_twin` (DEMO-2, first slice): Bevy view of a motor from `motor_cad`: rotor spinning at a set rpm, role
+  toggles, exploded view, cutaway, `--screenshot` headless PNG. Outside the default members: `just lint-twin`,
+  `just twin FILE`; `just test` and `just lint` cover the default members only.
+
 - `motor_demo` observes every measured `Foc` and `Control` value in `Samples` mode (API-41/API-39,
   `+observe+batched`, see motor_demo_api/CHANGELOG.md): `device.rs` samples `FocSamples`/`ControlSamples` once
   per tier through `ObserveState::samplers()`, `stats.rs`'s `levels!` table and `present()` carry
