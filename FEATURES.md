@@ -204,8 +204,11 @@ Status: ✅ done, 🚧 partial, 🐛 buggy, 📋 planned, 💡 idea.
   with 52 `+observe` properties in three trait levels by rate tier (25 kHz, 1 kHz, 50 Hz), their values `ww_si`
   quantities, on simulated time faster or slower than real time, in-process and over UDP; the `motor_demo` CLI
   observes chosen sets at chosen rates and shows achieved rates, bytes against the budget, missed sends and the cost
-  as one `StreamData` per value. Moved from wire_weaver (its EX-11) with history (P2401, 18 Oct 2026); docs page:
-  wire_weaver `docs/examples/motor_demo.md`.
+  as one `StreamData` per value. Every `foc` property and `control`'s 13 measured values are `+observe+batched`
+  (API-41/API-39): `samples:20ms` observes every sample in batches instead of one update each, `device.rs`'s
+  `sample_foc`/`sample_control` feed the batcher once per tier. Moved from wire_weaver (its EX-11) with history
+  (P2401, 18 Oct 2026); docs page: wire_weaver `docs/examples/motor_demo.md`, batching: wire_weaver
+  `docs/api/batching.md`.
 - 💡 **DEMO-2 Bevy twin**: `motor_twin`, a 3D digital twin in Bevy on top of `motor_sim`, connected through the HIL-13
   transport (plant in process, in another process, on a HIL plant or a real rig): the motor from FEM-10 geometry,
   rotor in slow motion or strobe, dq phasors, heat colours, the load, egui plots and controls, time controls (MS-36);

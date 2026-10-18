@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Added
+
+- `motor_demo` observes every measured `Foc` and `Control` value in `Samples` mode (API-41/API-39,
+  `+observe+batched`, see motor_demo_api/CHANGELOG.md): `device.rs` samples `FocSamples`/`ControlSamples` once
+  per tier through `ObserveState::samplers()`, `stats.rs`'s `levels!` table and `present()` carry
+  `Option<BatchedOwned<T>>` slots (one `Present` per sample of a batch, oldest first), a new test
+  (`samples_mode_gets_every_sample`) exercises it end to end. Measured (`Options::default`, `CodecPolicy::SMALLEST`,
+  n = 32): `foc` 3.7 MB/s unbatched (periodic, every sample) down to 1.0 MB/s batched (3.7x), `control` 99 kB/s
+  down to 26 kB/s (3.8x) — see wire_weaver's `docs/api/batching.md` for the full numbers and how they compare to
+  the design's prediction (`tpm prj/P2401-wireweaver/design/observe_batching_measure.md`).
+
 ### Fixed
 
 - `motor_demo` builds again against wire_weaver's API-39 batched observe: `device::LIMITS` carries

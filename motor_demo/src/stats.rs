@@ -10,8 +10,11 @@ use std::collections::BTreeMap;
 use std::time::Instant;
 
 use wire_weaver::shrink_wrap::tail_bytes::TailBytes;
-use wire_weaver::shrink_wrap::{RefVec, SerializeShrinkWrap, UNib32, UVlq32};
+use wire_weaver::shrink_wrap::{
+    RefVec, SerializeShrinkWrap, SerializeShrinkWrapOwned, UNib32, UVlq32,
+};
 use wire_weaver_client::observe::Observed;
+use ww_client_server::observe::BatchedOwned;
 use ww_client_server::{Event, EventKind};
 use ww_si::Second;
 use ww_si::ww_numeric::NumericValue;
@@ -84,6 +87,21 @@ pub struct Present {
     pub len: usize,
 }
 
+fn one_present<T: SerializeShrinkWrap + Human>(
+    index: u32,
+    unit: &str,
+    v: &T,
+    out: &mut Vec<Present>,
+) {
+    let mut buf = [0u8; 32];
+    let len = v.to_ww_bytes(&mut buf).map(|b| b.len()).unwrap_or(0);
+    out.push(Present {
+        index,
+        value: v.human(unit),
+        len,
+    });
+}
+
 fn present<T: SerializeShrinkWrap + Human>(
     index: u32,
     unit: &str,
@@ -91,13 +109,27 @@ fn present<T: SerializeShrinkWrap + Human>(
     out: &mut Vec<Present>,
 ) {
     if let Some(v) = value {
-        let mut buf = [0u8; 32];
-        let len = v.to_ww_bytes(&mut buf).map(|b| b.len()).unwrap_or(0);
-        out.push(Present {
-            index,
-            value: v.human(unit),
-            len,
-        });
+        one_present(index, unit, v, out);
+    }
+}
+
+/// A `+batched` property's slot (API-39): one [Present] for [BatchedOwned::One], one per sample of a
+/// [BatchedOwned::Series], oldest first, so [Stats::record]'s per-property count and cost follow every sample,
+/// and `last` ends up the newest one.
+fn present_batched<T: SerializeShrinkWrap + Human>(
+    index: u32,
+    unit: &str,
+    value: &Option<BatchedOwned<T>>,
+    out: &mut Vec<Present>,
+) {
+    match value {
+        None => {}
+        Some(BatchedOwned::One(v)) => one_present(index, unit, v, out),
+        Some(BatchedOwned::Series(series)) => {
+            for item in series.iter() {
+                one_present(index, unit, &item.value, out);
+            }
+        }
     }
 }
 
@@ -107,23 +139,29 @@ pub struct Carried {
     pub data: Vec<u8>,
 }
 
-/// The property table, and per level a function listing what an update carries. The data is serialized again with
-/// the device's own `<Level>Update` type, the one its `poll_properties` writes, so it has the bytes the device sent.
+/// The property table, and per level a function listing what an update carried. `plain` fields are `Option<T>`,
+/// `batched` ones `Option<BatchedOwned<T>>` (API-39): every sample counted, oldest first. The data is the update
+/// re-serialized with its own (owned, client-side) type, so it has the bytes that crossed the wire.
 macro_rules! levels {
-    ($($level:ident $Update:ident $fn:ident { $($index:literal $name:ident $unit:literal;)* })*) => {
+    ($($level:ident $Update:ident $fn:ident {
+        $(plain: $($pindex:literal $pname:ident $punit:literal;)*)?
+        $(batched: $($bindex:literal $bname:ident $bunit:literal;)*)?
+    })*) => {
         /// Every observable property, in level and index order.
         pub const PROPS: &[Prop] = &[
-            $($(Prop { level: Level::$level, index: $index, name: stringify!($name), unit: $unit },)*)*
+            $(
+                $($(Prop { level: Level::$level, index: $pindex, name: stringify!($pname), unit: $punit },)*)?
+                $($(Prop { level: Level::$level, index: $bindex, name: stringify!($bname), unit: $bunit },)*)?
+            )*
         ];
 
         $(
             /// What an update of the level carried.
             pub fn $fn(u: &$Update) -> Carried {
                 let mut present_ = vec![];
-                $(present($index, $unit, &u.$name, &mut present_);)*
-                let sent = crate::device::api_impl::$Update { $($name: u.$name,)* };
-                let mut buf = [0u8; crate::device::MAX_MESSAGE_LEN];
-                let data = sent.to_ww_bytes(&mut buf).map(|b| b.to_vec()).unwrap_or_default();
+                $($(present($pindex, $punit, &u.$pname, &mut present_);)*)?
+                $($(present_batched($bindex, $bunit, &u.$bname, &mut present_);)*)?
+                let data = u.to_ww_bytes_owned().unwrap_or_default();
                 Carried { present: present_, data }
             }
         )*
@@ -132,6 +170,7 @@ macro_rules! levels {
 
 levels! {
     Foc FocUpdate foc_present {
+        batched:
         0 i_a "A"; 1 i_b "A"; 2 i_c "A"; 3 i_alpha "A"; 4 i_beta "A"; 5 i_d "A"; 6 i_q "A";
         7 v_d "V"; 8 v_q "V"; 9 v_alpha "V"; 10 v_beta "V";
         11 duty_a ""; 12 duty_b ""; 13 duty_c "";
@@ -139,12 +178,15 @@ levels! {
         17 observer_x1 "Wb"; 18 observer_x2 "Wb"; 19 v_bus "V"; 20 phase_true "rad";
     }
     Control ControlUpdate control_present {
+        plain:
         0 mode ""; 1 sensor_mode ""; 2 duty_target ""; 3 current_target "A"; 4 speed_target "erpm";
+        batched:
         5 speed_electrical "erpm"; 6 speed "rpm"; 7 id_set "A"; 8 iq_set "A"; 9 id_filtered "A";
         10 iq_filtered "A"; 11 i_motor "A"; 12 i_input "A"; 13 duty_now ""; 14 torque "N·m"; 15 position "°";
         16 observer_error "°"; 17 speed_true "rpm";
     }
     Telemetry TelemetryUpdate telemetry_present {
+        plain:
         0 time "s"; 1 charge_drawn "Ah"; 2 charge_returned "Ah"; 3 energy_drawn "Wh"; 4 energy_returned "Wh";
         5 tachometer ""; 6 tachometer_abs ""; 7 v_in "V"; 8 power_in "W"; 9 avg_motor_current "A";
         10 avg_input_current "A"; 11 fault ""; 12 real_time_factor "";
@@ -336,7 +378,9 @@ mod tests {
         // one current of the foc level, timestamp in µs
         let t = Second::from_parts(ww_si::Prefix::Micro, NumericValue::U64(123_456));
         let mut u = crate::device::api_impl::FocUpdate::from_ww_bytes(&[]).unwrap();
-        u.i_q = Some(ww_si::Ampere::milli(1500i32));
+        u.i_q = Some(ww_client_server::observe::Batched::One(
+            ww_si::Ampere::milli(1500i32),
+        ));
         let mut buf = [0u8; 64];
         let data = u.to_ww_bytes(&mut buf).unwrap().to_vec();
         let update = property_update_len(Level::Foc, Some(&t), 0, &data);

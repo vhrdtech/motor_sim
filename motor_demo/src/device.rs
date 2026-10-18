@@ -41,6 +41,11 @@ pub const STEP_US: u64 = 1_000_000 / PWM_HZ as u64;
 /// values of each of its 21 properties is about 1.3 kB).
 pub const MAX_MESSAGE_LEN: usize = 4096;
 
+/// Where `poll_properties` rebuilds one batch of `+batched` samples while it encodes or counts it (API-39): as big
+/// as the biggest batch. `Quantity<U>`'s size doesn't depend on `U`, so any property's `Timed<..>` does.
+const SCRATCH_BYTES: usize =
+    ww_stream::batch::scratch_bytes::<ww_stream::batch::Timed<Ampere>>(api_impl::OBSERVE_BATCH);
+
 /// Observe limits of the demo, in simulated time: one PWM period is the shortest period, so the 25 kHz tier can be
 /// observed at its full rate (when the link keeps up), 20 kB/s per level when the host doesn't ask for a budget.
 pub const LIMITS: ObserveLimits = ObserveLimits {
@@ -147,7 +152,10 @@ impl Device {
             control: ControlQuantities::new(&ControlValues::default()),
             telemetry: TelemetryQuantities::new(&TelemetryValues::default()),
             prev_real_time_factor: 0.0,
-            observe: api_impl::ObserveState::new(LIMITS),
+            observe: api_impl::ObserveState::new(
+                LIMITS,
+                api_impl::ObserveBatches::new(ww_stream::batch::DEFAULT_POLICY),
+            ),
         };
         d.motor.set_load(sim_load(opts.load));
         d
@@ -222,9 +230,11 @@ impl Device {
 }
 
 /// The values of one tier as quantities: converted from the tier's `f32` values after each run of the tier, the
-/// ones that differ from the previous run ([Same]) marked changed, and kept for the getters.
-macro_rules! tier {
-    ($values:ident: $Values:ty => $Quantities:ident, $mark:ident;
+/// ones that differ from the previous run ([Same]) marked changed, and kept for the getters. Shared by [tier]'s two
+/// arms (with and without `sample(..)`): a macro can't nest a field's own repetition inside an optional one for a
+/// variable (`sample`'s) that isn't repeated the same number of times.
+macro_rules! tier_common {
+    ($values:ident: $Values:ty => $Quantities:ident;
         $($name:ident: $ty:ty = |$v:ident| $conv:expr, $get:ident, $changed:ident;)*) => {
         #[derive(Clone, Copy, Debug)]
         struct $Quantities {
@@ -245,7 +255,17 @@ macro_rules! tier {
                     GetResult::Value(self.$values.$name)
                 }
             )*
+        }
+    };
+}
 
+macro_rules! tier {
+    ($values:ident: $Values:ty => $Quantities:ident, $mark:ident;
+        $($name:ident: $ty:ty = |$v:ident| $conv:expr, $get:ident, $changed:ident;)*) => {
+        tier_common!($values: $Values => $Quantities;
+            $($name: $ty = |$v| $conv, $get, $changed;)*);
+
+        impl Device {
             fn $mark(&mut self) {
                 let now = $Quantities::new(&self.ctl.$values);
                 $(
@@ -257,9 +277,33 @@ macro_rules! tier {
             }
         }
     };
+    ($values:ident: $Values:ty => $Quantities:ident, $mark:ident, sample($sampler:ident, $Samples:ident);
+        $($name:ident: $ty:ty = |$v:ident| $conv:expr, $get:ident, $changed:ident;)*) => {
+        tier_common!($values: $Values => $Quantities;
+            $($name: $ty = |$v| $conv, $get, $changed;)*);
+
+        impl Device {
+            fn $mark(&mut self) {
+                let now = $Quantities::new(&self.ctl.$values);
+                $(
+                    if !now.$name.same(&self.$values.$name) {
+                        self.$changed();
+                    }
+                )*
+                self.$values = now;
+                // Every sample reaches the batcher (API-39), whatever `+observe` modes are granted: the sampler
+                // itself decides what a host's `Samples` request keeps (`every_us`, budget).
+                let t = Second::micro(self.now_us() as u32);
+                self.observe.samplers().$sampler.sample(
+                    t,
+                    api_impl::$Samples { $($name: now.$name,)* },
+                );
+            }
+        }
+    };
 }
 
-tier!(foc: FocValues => FocQuantities, mark_foc;
+tier!(foc: FocValues => FocQuantities, mark_foc, sample(root_foc, FocSamples);
     i_a: Ampere = |v| Ampere::quantize(v.i_a, Prefix::Milli, NumericBaseType::I32),
         get_foc_i_a, mark_changed_foc_i_a;
     i_b: Ampere = |v| Ampere::quantize(v.i_b, Prefix::Milli, NumericBaseType::I32),
@@ -304,7 +348,7 @@ tier!(foc: FocValues => FocQuantities, mark_foc;
         get_foc_phase_true, mark_changed_foc_phase_true;
 );
 
-tier!(control: ControlValues => ControlQuantities, mark_control;
+tier!(control: ControlValues => ControlQuantities, mark_control, sample(root_control, ControlSamples);
     speed_electrical: AngularVelocity = |v| AngularVelocity::quantize(rad_per_s(v.erpm), Prefix::Milli, NumericBaseType::I32),
         get_control_speed_electrical, mark_changed_control_speed_electrical;
     speed: AngularVelocity = |v| AngularVelocity::quantize(rad_per_s(v.rpm), Prefix::Milli, NumericBaseType::I32),
@@ -819,6 +863,7 @@ async fn run<Tx: MessageTx, Rx: MessageRx>(
     stop: &AtomicBool,
 ) {
     let mut buf = [0u8; MAX_MESSAGE_LEN];
+    let mut scratch = ww_stream::batch::Scratch::<SCRATCH_BYTES>::new();
     let mut tick = tokio::time::interval(Duration::from_millis(1));
     tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     let mut pace = Pace::new(Instant::now(), device.steps, device.time_scale);
@@ -837,7 +882,9 @@ async fn run<Tx: MessageTx, Rx: MessageRx>(
                 while device.steps < target {
                     device.step();
                     if server.is_up() {
-                        _ = device.poll_properties(&mut server.sink(), (), device.now_us(), &mut buf).await;
+                        _ = device
+                            .poll_properties(&mut server.sink(), (), device.now_us(), &mut buf, &mut scratch)
+                            .await;
                     }
                     n += 1;
                     if n.is_multiple_of(64) && now.elapsed() > TICK_BUDGET {

@@ -14,6 +14,12 @@
 //! a fixed prefix for signed physical values (the prefix sets the resolution, noise below it costs no bits), `U32`
 //! for totals that only grow, `F32` for values that span decades. Setpoints and settings the host writes may come in
 //! any of the three. A firmware of this API enables only those number types (`ww_si` features `i32`, `u32`, `f32`).
+//!
+//! Every measured value of [Foc] and [Control] is `+observe+batched` (API-41/API-39, wire_weaver's
+//! `docs/api/batching.md`): a host observing in [`ObserveMode::Samples`](ww_client_server::observe::ObserveMode::Samples)
+//! gets every sample the device takes, in batches (32 samples each by default), instead of one update per sample.
+//! [Control]'s setpoints and [Telemetry] are not batched: setpoints only change when written, and 50 Hz is cheap
+//! enough one update at a time.
 #![no_std]
 
 use wire_weaver::prelude::*;
@@ -35,52 +41,53 @@ pub trait MotorDemo {
     ww_impl!(sim: Sim);
 }
 
-/// The current loop, run every PWM period (40 µs).
+/// The current loop, run every PWM period (40 µs). Every property is `+batched`: a host observing in `Samples`
+/// mode gets one update per batch of 32 values per property (1.28 ms of data) instead of one per period.
 #[ww_trait]
 pub trait Foc {
     /// Phase a current as measured (offset calibrated): `Milli` `I32`.
-    property!(ro+observe i_a: Ampere);
+    property!(ro+observe+batched i_a: Ampere);
     /// Phase b current: `Milli` `I32`.
-    property!(ro+observe i_b: Ampere);
+    property!(ro+observe+batched i_b: Ampere);
     /// Phase c current: `Milli` `I32`.
-    property!(ro+observe i_c: Ampere);
+    property!(ro+observe+batched i_c: Ampere);
     /// α current (Clarke): `Milli` `I32`.
-    property!(ro+observe i_alpha: Ampere);
+    property!(ro+observe+batched i_alpha: Ampere);
     /// β current: `Milli` `I32`.
-    property!(ro+observe i_beta: Ampere);
+    property!(ro+observe+batched i_beta: Ampere);
     /// d current (Park at `phase`): `Milli` `I32`.
-    property!(ro+observe i_d: Ampere);
+    property!(ro+observe+batched i_d: Ampere);
     /// q current: `Milli` `I32`.
-    property!(ro+observe i_q: Ampere);
+    property!(ro+observe+batched i_q: Ampere);
     /// d voltage the current loop asks for: `Milli` `I32`.
-    property!(ro+observe v_d: Volt);
+    property!(ro+observe+batched v_d: Volt);
     /// q voltage: `Milli` `I32`.
-    property!(ro+observe v_q: Volt);
+    property!(ro+observe+batched v_q: Volt);
     /// α voltage: `Milli` `I32`.
-    property!(ro+observe v_alpha: Volt);
+    property!(ro+observe+batched v_alpha: Volt);
     /// β voltage: `Milli` `I32`.
-    property!(ro+observe v_beta: Volt);
+    property!(ro+observe+batched v_beta: Volt);
     /// Leg a duty, 0..=1: `Micro` `I32` (PWM resolution is ~2.4e-4, `Milli` would lose it).
-    property!(ro+observe duty_a: Ratio);
+    property!(ro+observe+batched duty_a: Ratio);
     /// Leg b duty: `Micro` `I32`.
-    property!(ro+observe duty_b: Ratio);
+    property!(ro+observe+batched duty_b: Ratio);
     /// Leg c duty: `Micro` `I32`.
-    property!(ro+observe duty_c: Ratio);
+    property!(ro+observe+batched duty_c: Ratio);
     /// Electrical angle the current loop uses, [0, 2π): `Micro` `I32`. Wraps once per electrical turn: one full
     /// value per turn in a `Series` (200 per second at 12 000 erpm against 25 000 samples).
-    property!(ro+observe phase: Radian);
+    property!(ro+observe+batched phase: Radian);
     /// Electrical angle from the flux observer: `Micro` `I32`.
-    property!(ro+observe phase_observer: Radian);
+    property!(ro+observe+batched phase_observer: Radian);
     /// Electrical angle from the encoder: `Micro` `I32`.
-    property!(ro+observe phase_encoder: Radian);
+    property!(ro+observe+batched phase_encoder: Radian);
     /// Flux observer state α: `Nano` `I32` (flux linkage is a few mWb).
-    property!(ro+observe observer_x1: Weber);
+    property!(ro+observe+batched observer_x1: Weber);
     /// Flux observer state β: `Nano` `I32`.
-    property!(ro+observe observer_x2: Weber);
+    property!(ro+observe+batched observer_x2: Weber);
     /// DC link voltage as measured: `Milli` `I32`.
-    property!(ro+observe v_bus: Volt);
+    property!(ro+observe+batched v_bus: Volt);
     /// True electrical angle (simulator), what a real controller can't see: `Micro` `I32`.
-    property!(ro+observe phase_true: Radian);
+    property!(ro+observe+batched phase_true: Radian);
 }
 
 /// Setpoints and the 1 kHz loop.
@@ -97,31 +104,31 @@ pub trait Control {
     /// Electrical speed in [ControlMode::Speed] (VESC's erpm is this x 60 / 2π).
     property!(rw+observe speed_target: AngularVelocity);
     /// Electrical speed from the PLL: `Milli` `I32` (12 000 erpm = 1 257 rad/s).
-    property!(ro+observe speed_electrical: AngularVelocity);
+    property!(ro+observe+batched speed_electrical: AngularVelocity);
     /// Mechanical speed: `Milli` `I32`.
-    property!(ro+observe speed: AngularVelocity);
+    property!(ro+observe+batched speed: AngularVelocity);
     /// d current setpoint: `Milli` `I32`.
-    property!(ro+observe id_set: Ampere);
+    property!(ro+observe+batched id_set: Ampere);
     /// q current setpoint: `Milli` `I32`.
-    property!(ro+observe iq_set: Ampere);
+    property!(ro+observe+batched iq_set: Ampere);
     /// d current, low-pass filtered: `Milli` `I32`.
-    property!(ro+observe id_filtered: Ampere);
+    property!(ro+observe+batched id_filtered: Ampere);
     /// q current, low-pass filtered: `Milli` `I32`.
-    property!(ro+observe iq_filtered: Ampere);
+    property!(ro+observe+batched iq_filtered: Ampere);
     /// Motor current (q current, filtered): `Milli` `I32`.
-    property!(ro+observe i_motor: Ampere);
+    property!(ro+observe+batched i_motor: Ampere);
     /// DC link (battery) current, estimated: `Milli` `I32`.
-    property!(ro+observe i_input: Ampere);
+    property!(ro+observe+batched i_input: Ampere);
     /// Duty now, |v_dq| over the most the inverter gives, signed by v_q: `Micro` `I32`.
-    property!(ro+observe duty_now: Ratio);
+    property!(ro+observe+batched duty_now: Ratio);
     /// Torque estimated from the q current: `Milli` `I32`.
-    property!(ro+observe torque: Torque);
+    property!(ro+observe+batched torque: Torque);
     /// Rotor position from the encoder, [0, 360): `Milli` `I32`.
-    property!(ro+observe position: Degree);
+    property!(ro+observe+batched position: Degree);
     /// Observer angle minus encoder angle, electrical, (-180, 180]: `Milli` `I32`.
-    property!(ro+observe observer_error: Degree);
+    property!(ro+observe+batched observer_error: Degree);
     /// True mechanical speed (simulator): `Milli` `I32`.
-    property!(ro+observe speed_true: AngularVelocity);
+    property!(ro+observe+batched speed_true: AngularVelocity);
 }
 
 /// Counters and totals, as VESC Tool shows them.

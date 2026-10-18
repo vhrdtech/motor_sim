@@ -12,7 +12,7 @@ use motor_demo::client::MotorDemo;
 use motor_demo::device::{self, Medium, Options};
 use motor_demo::host::{LevelRequest, observe};
 use motor_demo::stats::{Level, Stats, find};
-use wire_weaver_client::observe::{on_change, periodic};
+use wire_weaver_client::observe::{on_change, periodic, samples};
 use ww_client_server::observe::ObserveMode;
 
 const MS: Duration = Duration::from_millis(1);
@@ -117,10 +117,11 @@ async fn each_tier_at_its_rate() {
     near("time", 50.0);
     assert_eq!(rate(&stats, "i_a"), 0.0);
     assert_eq!(stats.levels[&Level::Foc].missed, 0);
-    // 18 values in one update instead of 18 events
+    // 18 values in one update instead of 18 events, even with the `+batched` ones each paying a `Batched::One`
+    // tag (API-39) that an unbatched property or a lone `StreamData` event doesn't.
     let control = &stats.levels[&Level::Control];
     assert!(
-        (control.bytes as f64) < 0.6 * control.stream_data_bytes() as f64,
+        (control.bytes as f64) < 0.75 * control.stream_data_bytes() as f64,
         "{control:?}"
     );
 }
@@ -237,4 +238,45 @@ async fn over_udp() {
         .parse()
         .unwrap();
     assert!(erpm.abs() > 1_000.0, "{erpm}");
+}
+
+/// `Samples` mode (API-39) on a `+batched` property: every PWM-period sample reaches the host, in batches of
+/// `OBSERVE_BATCH` (32) instead of one update per sample.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn samples_mode_gets_every_sample() {
+    let (_dev, client) = connect_in_process("motor_demo/samples", Options::default()).await;
+    let session = observe(
+        &client,
+        &[LevelRequest {
+            level: Level::Foc,
+            modes: modes(&["i_q"], samples(20 * MS)),
+            budget: Some(200_000),
+        }],
+    )
+    .await
+    .unwrap();
+    // `Samples` updates carry no head `t` (API-39: each item has its own, see `docs/api/batching.md`), so `run`'s
+    // sim-time span (which reads the head `t`) can't measure this level; sleep a real window instead
+    // (`Options::default()` runs at `time_scale` 1, real time tracks simulated time).
+    tokio::time::sleep(100 * MS).await;
+    session.take();
+    let window = Duration::from_millis(500);
+    tokio::time::sleep(window).await;
+    let stats = session.take();
+    let foc = &stats.levels[&Level::Foc];
+    let i_q = foc.props[&find("i_q").unwrap().index].clone();
+    let expected = window.as_secs_f64() * 25_000.0;
+    assert!(
+        (i_q.count as f64 - expected).abs() < 0.15 * expected,
+        "{} samples of {i_q:?}, expected ~{expected:.0}",
+        i_q.count
+    );
+    // batched: far fewer updates than samples
+    assert!(
+        foc.updates * 16 < i_q.count,
+        "{} updates for {} samples",
+        foc.updates,
+        i_q.count
+    );
+    assert_eq!(foc.missed, 0);
 }
