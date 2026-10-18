@@ -49,6 +49,8 @@ pub const LIMITS: ObserveLimits = ObserveLimits {
     max_level_budget: 4_000_000,
     total_budget: 8_000_000,
     timestamps: true,
+    samples_max_age_us: ObserveLimits::DEFAULT.samples_max_age_us,
+    samples_min_every_us: ObserveLimits::DEFAULT.samples_min_every_us,
 };
 
 /// q current limit for each motor, A.

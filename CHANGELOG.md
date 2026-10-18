@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- `motor_demo` builds again against wire_weaver's API-39 batched observe: `device::LIMITS` carries
+  `samples_max_age_us` / `samples_min_every_us`, `args::mode` / `mode_str` parse and print `ObserveMode::Samples`
+  as `samples:20ms` (every sample) or `samples:1ms/20ms` (decimated).
+
 ## [0.1.1] - 2026-10-18
 
 ### Changed

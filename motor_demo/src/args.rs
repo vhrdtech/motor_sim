@@ -4,7 +4,8 @@ use std::time::Duration;
 
 use anyhow::{Context, bail};
 use motor_demo_api::Load;
-use wire_weaver_client::observe::{on_change, on_change_or_beat, periodic};
+use wire_weaver::shrink_wrap::UNib32;
+use wire_weaver_client::observe::{on_change, on_change_or_beat, periodic, samples, samples_every};
 use ww_client_server::observe::ObserveMode;
 use ww_si::{Quantity, Torque};
 
@@ -28,7 +29,8 @@ pub fn duration(s: &str) -> anyhow::Result<Duration> {
 }
 
 /// `off`, `every:1ms` (or just `1ms`), `change:1ms` (on change, at most every 1 ms), `beat:1ms/100ms` (on change,
-/// at least every 100 ms).
+/// at least every 100 ms), `samples:20ms` (every sample, in batches at most 20 ms old, `+observe+batched`
+/// properties only), `samples:1ms/20ms` (one sample per 1 ms, same batching).
 pub fn mode(s: &str) -> anyhow::Result<ObserveMode> {
     Ok(match s.split_once(':') {
         None if s == "off" => ObserveMode::Off,
@@ -41,7 +43,13 @@ pub fn mode(s: &str) -> anyhow::Result<ObserveMode> {
                 .with_context(|| format!("beat:MIN/MAX, not {s}"))?;
             on_change_or_beat(duration(min)?, duration(max)?)
         }
-        _ => bail!("not an observe mode: {s} (off, every:1ms, change:1ms, beat:1ms/100ms)"),
+        Some(("samples", d)) => match d.split_once('/') {
+            Some((every, max_age)) => samples_every(duration(every)?, duration(max_age)?),
+            None => samples(duration(d)?),
+        },
+        _ => bail!(
+            "not an observe mode: {s} (off, every:1ms, change:1ms, beat:1ms/100ms, samples:20ms)"
+        ),
     })
 }
 
@@ -61,6 +69,14 @@ pub fn mode_str(m: &ObserveMode) -> String {
         ObserveMode::OnChangeOrBeat { min_us, max_us } => {
             format!("beat:{}/{}", d(min_us.0), d(max_us.0))
         }
+        ObserveMode::Samples {
+            every_us: UNib32(0),
+            max_age_us,
+        } => format!("samples:{}", d(max_age_us.0)),
+        ObserveMode::Samples {
+            every_us,
+            max_age_us,
+        } => format!("samples:{}/{}", d(every_us.0), d(max_age_us.0)),
         ObserveMode::Unknown(_) => "?".into(),
     }
 }
@@ -113,7 +129,19 @@ mod tests {
             on_change_or_beat(ms, 100 * ms)
         );
         assert_eq!(mode("off").unwrap(), ObserveMode::Off);
-        for m in ["every:40us", "change:1ms", "beat:1ms/2s", "off"] {
+        assert_eq!(mode("samples:20ms").unwrap(), samples(20 * ms));
+        assert_eq!(
+            mode("samples:1ms/20ms").unwrap(),
+            samples_every(ms, 20 * ms)
+        );
+        for m in [
+            "every:40us",
+            "change:1ms",
+            "beat:1ms/2s",
+            "samples:20ms",
+            "samples:1ms/20ms",
+            "off",
+        ] {
             assert_eq!(mode_str(&mode(m).unwrap()), m);
         }
         assert_eq!(
