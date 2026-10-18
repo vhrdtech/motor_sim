@@ -1,6 +1,6 @@
 [package]
 name = "motor_sim"
-version = "0.1.0"
+version = "0.1.1"
 description = "Deterministic no_std electric motor simulator (PMSM/BLDC plant, inverter, mechanics, sensors)"
 authors.workspace = true
 edition.workspace = true

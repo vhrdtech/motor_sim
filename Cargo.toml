@@ -19,7 +19,7 @@ tracing-subscriber = "0.3"
 
 # this workspace
 motor_demo_api = { version = "0.3.0", path = "./motor_demo_api" }
-motor_sim = { version = "0.1.0", path = "./motor_sim" }
+motor_sim = { version = "0.1.1", path = "./motor_sim" }
 
 # wire_weaver from a sibling checkout (`just deps-pull` brings it up to its main), until its crates are on crates.io
 wire_weaver = { path = "../wire_weaver/wire_weaver", default-features = false }
