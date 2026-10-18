@@ -13,6 +13,14 @@
   down to 26 kB/s (3.8x) — see wire_weaver's `docs/api/batching.md` for the full numbers and how they compare to
   the design's prediction (`tpm prj/P2401-wireweaver/design/observe_batching_measure.md`).
 
+### Changed
+
+- `motor_demo` on wire_weaver's shared observe clock (API-49): `stats.rs` pairs `BatchedOwned::Samples` with the
+  update's `sample_times` (`Observed::sample_times`; a count mismatch is left out, as the client does), the level
+  functions and `Stats::record` take them, and the message bytes count them in the `PropertyUpdate` head.
+  Measured the same way: `foc` 983 kB/s → 812 kB/s (-17 %, 4.6x below unbatched), `control` 25.8 kB/s → 19.0 kB/s
+  (-26 %, 5.2x), and `control`'s properties now seal together (48 updates/s instead of 238).
+
 ### Fixed
 
 - `motor_demo` builds again against wire_weaver's API-39 batched observe: `device::LIMITS` carries

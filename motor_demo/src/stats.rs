@@ -120,22 +120,27 @@ fn present<T: SerializeShrinkWrap + Human>(
 }
 
 /// A `+batched` property's slot (API-39): one [Present] for [BatchedOwned::One], one per sample of a
-/// [BatchedOwned::Series], oldest first, so [Stats::record]'s per-property count and cost follow every sample,
-/// and `last` ends up the newest one.
+/// [BatchedOwned::Samples], oldest first, each at its time from the update's `sample_times` (shared by the level,
+/// API-49), so [Stats::record]'s per-property count and cost follow every sample, and `last` ends up the newest one.
+/// Samples whose count doesn't match the times are malformed and left out, as the client does.
 fn present_batched<T: SerializeShrinkWrap + Human>(
     index: u32,
     unit: &str,
     value: &Option<BatchedOwned<T>>,
+    sample_times: Option<&[Second]>,
     out: &mut Vec<Present>,
 ) {
     match value {
         None => {}
         Some(BatchedOwned::One(v)) => one_present(index, unit, v, None, out),
-        Some(BatchedOwned::Series(series)) => {
-            for item in series.iter() {
-                one_present(index, unit, &item.value, t_us(Some(&item.t)), out);
+        Some(BatchedOwned::Samples(series)) => match sample_times {
+            Some(times) if times.len() == series.len() => {
+                for (value, t) in series.iter().zip(times) {
+                    one_present(index, unit, value, t_us(Some(t)), out);
+                }
             }
-        }
+            _ => {}
+        },
     }
 }
 
@@ -162,11 +167,12 @@ macro_rules! levels {
         ];
 
         $(
-            /// What an update of the level carried.
-            pub fn $fn(u: &$Update) -> Carried {
+            /// What an update of the level carried, `sample_times` its samples' times.
+            #[allow(unused_variables)]
+            pub fn $fn(u: &$Update, sample_times: Option<&[Second]>) -> Carried {
                 let mut present_ = vec![];
                 $($(present($pindex, $punit, &u.$pname, &mut present_);)*)?
-                $($(present_batched($bindex, $bunit, &u.$bname, &mut present_);)*)?
+                $($(present_batched($bindex, $bunit, &u.$bname, sample_times, &mut present_);)*)?
                 let data = u.to_ww_bytes_owned().unwrap_or_default();
                 Carried { present: present_, data }
             }
@@ -211,26 +217,43 @@ pub fn find(name: &str) -> Option<&'static Prop> {
     found.next().is_none().then_some(first)
 }
 
-/// Bytes of the `PropertyUpdate` event that carried `data`. The host unwraps the device's microseconds, on the wire
-/// they are a wrapping `u32`.
-pub fn property_update_len(level: Level, t: Option<&Second>, missed: u32, data: &[u8]) -> usize {
-    let path = [UNib32(level as u32)];
-    let t = t.map(|t| match (t.prefix, t_us(Some(t))) {
+/// A device time as the device sent it: the host unwraps the device's microseconds, on the wire they are a
+/// wrapping `u32`.
+fn as_sent(t: &Second) -> Second {
+    match (t.prefix, t_us(Some(t))) {
         (ww_si::Prefix::Micro, Some(us)) => {
             Second::from_parts(ww_si::Prefix::Micro, NumericValue::U32(us as u32))
         }
         _ => *t,
-    });
+    }
+}
+
+/// Bytes of the `PropertyUpdate` event that carried `data`, with the update's time `t` and its samples' times
+/// `sample_times` (API-49) as the device sent them.
+pub fn property_update_len(
+    level: Level,
+    t: Option<&Second>,
+    sample_times: Option<&[Second]>,
+    missed: u32,
+    data: &[u8],
+) -> usize {
+    let path = [UNib32(level as u32)];
+    let sample_times: Option<Vec<Second>> =
+        sample_times.map(|times| times.iter().map(as_sent).collect());
     let event = Event {
         seq: UVlq32(0),
         result: Ok(EventKind::PropertyUpdate {
             path: RefVec::Slice { slice: &path },
-            t,
+            t: t.map(as_sent),
             missed: (missed > 0).then_some(UNib32(missed)),
+            sample_times: sample_times
+                .as_deref()
+                .map(wire_weaver::shrink_wrap::series::Series::new),
             data: TailBytes(data),
         }),
     };
-    let mut buf = vec![0u8; data.len() + 64];
+    let times_len = sample_times.as_ref().map_or(0, |t| t.len() * 16);
+    let mut buf = vec![0u8; data.len() + times_len + 64];
     event.to_ww_bytes(&mut buf).map(|b| b.len()).unwrap_or(0)
 }
 
@@ -326,18 +349,20 @@ impl Stats {
         }
     }
 
-    /// Count one update of `level`: `data` is the update's data, `present` what it carried.
+    /// Count one update of `level`: `data` is the update's data, `sample_times` its samples' times, `present` what
+    /// it carried.
     pub fn record(
         &mut self,
         level: Level,
         t: Option<&Second>,
+        sample_times: Option<&[Second]>,
         missed: u32,
         data: &[u8],
         present: &[Present],
     ) {
         let l = self.levels.entry(level).or_default();
         l.updates += 1;
-        l.bytes += property_update_len(level, t, missed, data) as u64;
+        l.bytes += property_update_len(level, t, sample_times, missed, data) as u64;
         l.missed += missed as u64;
         if let Some(t) = t_us(t) {
             l.first_t.get_or_insert(t);
@@ -363,10 +388,11 @@ impl Stats {
         &mut self,
         level: Level,
         o: &Observed<U>,
-        carried: impl FnOnce(&U) -> Carried,
+        carried: impl FnOnce(&U, Option<&[Second]>) -> Carried,
     ) {
-        let c = carried(&o.value);
-        self.record(level, o.t.as_ref(), o.missed, &c.data, &c.present);
+        let times = o.sample_times.as_deref();
+        let c = carried(&o.value, times);
+        self.record(level, o.t.as_ref(), times, o.missed, &c.data, &c.present);
     }
 
     /// The counts so far, starting over.
@@ -403,7 +429,7 @@ mod tests {
         ));
         let mut buf = [0u8; 64];
         let data = u.to_ww_bytes(&mut buf).unwrap().to_vec();
-        let update = property_update_len(Level::Foc, Some(&t), 0, &data);
+        let update = property_update_len(Level::Foc, Some(&t), None, 0, &data);
         let alone = stream_data_len(Level::Foc, 6, 5);
         assert!(update > 5 && alone > 5, "{update} {alone}");
     }

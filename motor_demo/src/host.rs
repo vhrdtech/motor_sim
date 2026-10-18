@@ -92,7 +92,7 @@ async fn start<U: LevelUpdate>(
     prepared: PreparedObserve<U, U>,
     r: &LevelRequest,
     stats: Arc<Mutex<Stats>>,
-    carried: fn(&U) -> Carried,
+    carried: fn(&U, Option<&[ww_si::Second]>) -> Carried,
 ) -> anyhow::Result<(LevelGranted, JoinHandle<()>)> {
     let prepared = match r.budget {
         Some(b) => prepared.budget(b),
