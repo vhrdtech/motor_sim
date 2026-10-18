@@ -9,7 +9,9 @@
 - `motor_cad` (DEMO-13, CLI-3): STEP assemblies into classified motor parts (names, instances, colours, layers,
   units; roles with confidence and reasons; `<model>.motor.toml` overrides), a Markdown report, the scene as `.glb`,
   parametric 12N14P outrunner and NEMA17 stepper written to STEP; the `motor_cad` CLI (`import`, `init-overrides`,
-  `gen`).
+  `gen`). Geometry finds stacked laminations drawn plate by plate (vendor NEMA34), and a name over many bodies of
+  one product counts less than each body's geometry. The naming, colour and axis convention for our own models and
+  how to export STEP from SolidWorks and FreeCAD: `motor_cad/README.md`.
 - `motor_twin` (DEMO-2, first slice): Bevy view of a motor from `motor_cad`: rotor spinning at a set rpm, role
   toggles, exploded view, cutaway, `--screenshot` headless PNG. Outside the default members: `just lint-twin`,
   `just twin FILE`; `just test` and `just lint` cover the default members only.

@@ -111,7 +111,12 @@ fn name_evidence(
                 continue;
             }
             seen.push(r);
-            let w = if k == 0 { 0.75 } else { 0.35 };
+            let mut w = if k == 0 { 0.75 } else { 0.35 };
+            // a name over many bodies names the whole thing ("Nema 34 stepper motor shaft D14" is a motor with a
+            // shaft), not each body: geometry decides between them
+            if p.bodies > 2 {
+                w *= 0.4;
+            }
             ev.push(Evidence {
                 role: r,
                 weight: w,
@@ -526,11 +531,50 @@ pub fn classify(model: &CadModel, overrides: &Overrides) -> Classification {
             }
         }
     }
+    // a stack of like plates across the axis: laminations (vendor models draw a stator stack plate by plate)
+    let across = |i: usize| {
+        let e = f[i].extents;
+        e[2] < 0.08 * e[1] && (f[i].z_max - f[i].z_min) < 2.5 * e[2] && f[i].r_max > 0.3 * envelope
+    };
+    let mut in_stack = vec![false; n];
+    for i in 0..n {
+        if !across(i) || in_stack[i] {
+            continue;
+        }
+        let like: Vec<usize> = (0..n)
+            .filter(|&j| {
+                across(j)
+                    && (0..3).all(|k| {
+                        (f[j].extents[k] - f[i].extents[k]).abs() < 0.05 * f[i].extents[k].max(1e-4)
+                    })
+            })
+            .collect();
+        if like.len() >= 6 {
+            for &j in &like {
+                in_stack[j] = true;
+                geo(
+                    &mut ev,
+                    j,
+                    Role::Stator,
+                    0.7,
+                    format!(
+                        "one of {} like plates stacked along the axis (laminations)",
+                        like.len()
+                    ),
+                );
+            }
+        }
+    }
     // flat plates, long thin off-axis or leaving the envelope
     for i in 0..n {
         let e = f[i].extents;
         let thick = e[2];
-        if thick < 0.08 * e[1] && thick > 0.3e-3 && thick < 3.5e-3 && e[0] > 0.6 * envelope {
+        if !in_stack[i]
+            && thick < 0.08 * e[1]
+            && thick > 0.3e-3
+            && thick < 3.5e-3
+            && e[0] > 0.6 * envelope
+        {
             geo(
                 &mut ev,
                 i,
