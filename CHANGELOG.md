@@ -2,10 +2,6 @@
 
 ## [Unreleased]
 
-## 2026-10-18: motor_cad 0.1.0, motor_twin 0.1.0, motor_demo 0.1.1, motor_demo_api 0.4.0
-
-Per-crate versions (the workspace has no single one); `motor_sim` stays 0.1.1.
-
 ### Added
 
 - `motor_cad` (DEMO-13, CLI-3): STEP assemblies into classified motor parts (names, instances, colours, layers,
@@ -17,7 +13,7 @@ Per-crate versions (the workspace has no single one); `motor_sim` stays 0.1.1.
 - `motor_twin` (DEMO-2, first slice): Bevy view of a motor from `motor_cad`: rotor spinning at a set rpm, role
   toggles, exploded view, cutaway, `--screenshot` headless PNG. Outside the default members: `just lint-twin`,
   `just twin FILE`; `just test` and `just lint` cover the default members only.
-- `motor_demo_api` 0.4.0: motor_demo_api/CHANGELOG.md, section 0.4.0 (batched observe, breaking).
+
 - `motor_demo` observes every measured `Foc` and `Control` value in `Samples` mode (API-41/API-39,
   `+observe+batched`, see motor_demo_api/CHANGELOG.md): `device.rs` samples `FocSamples`/`ControlSamples` once
   per tier through `ObserveState::samplers()`, `stats.rs`'s `levels!` table and `present()` carry
@@ -95,7 +91,7 @@ Per-crate versions (the workspace has no single one); `motor_sim` stays 0.1.1.
 
 ### Changed
 
-- `motor_demo_api` 0.3.0: motor_demo_api/CHANGELOG.md, section 0.3.0
+- `motor_demo_api` 0.3.0: motor_demo_api/CHANGELOG.md, section Unreleased
 
 ## [0.1.1] - 2026-10-18
 
