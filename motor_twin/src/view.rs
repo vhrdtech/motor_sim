@@ -202,7 +202,9 @@ fn meshes(scene: &Scene, i: usize, cut_normal: Vec3) -> (Mesh, Mesh, Vec3, bool)
     };
     let keep: Vec<u32> = m
         .indices
-        .chunks_exact(3)
+        .as_chunks::<3>()
+        .0
+        .iter()
         .filter(|t| {
             let c = (pos[t[0] as usize] + pos[t[1] as usize] + pos[t[2] as usize]) / 3.0;
             Vec3::new(c.x, 0.0, c.z).dot(cut_normal) <= 0.0

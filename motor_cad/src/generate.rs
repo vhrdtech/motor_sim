@@ -48,6 +48,7 @@ fn inst(product: usize, name: &str, placement: Placement) -> Instance {
 
 /// A ring of teeth (outward when `r_tip > r_yoke`: an outrunner stator; inward when smaller: an inrunner bore).
 /// `w` is the tooth body half width, `phi` the tooth tip half angle, `r_shoe` the radius where the body meets the tip.
+#[allow(clippy::too_many_arguments)] // one tooth outline: every argument is a dimension
 pub fn teeth_loop(
     n: usize,
     r_yoke: f64,

@@ -427,7 +427,7 @@ fn mesh_solid(table: &Table, raw_id: u64, unit_m: f64) -> Result<Mesh, String> {
 /// Flat normals where the mesher gave none.
 fn fill_missing_normals(m: &mut Mesh) {
     let mut acc = vec![[0.0f64; 3]; m.positions.len()];
-    for t in m.indices.chunks_exact(3) {
+    for t in m.indices.as_chunks::<3>().0 {
         let p = |i: u32| m.positions[i as usize].map(|x| x as f64);
         let n = crate::mesh::cross(
             crate::mesh::sub(p(t[1]), p(t[0])),

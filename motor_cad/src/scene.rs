@@ -130,7 +130,7 @@ impl Scene {
         let (mut views, mut accessors, mut meshes, mut materials, mut nodes) =
             (vec![], vec![], vec![], vec![], vec![]);
         let mut push_view = |bin: &mut Vec<u8>, bytes: &[u8], target: u32| {
-            while bin.len() % 4 != 0 {
+            while !bin.len().is_multiple_of(4) {
                 bin.push(0);
             }
             let off = bin.len();
@@ -197,7 +197,7 @@ impl Scene {
                 "topology": self.topology, "slots": self.slots, "poles": self.poles
             }}
         }));
-        while bin.len() % 4 != 0 {
+        while !bin.len().is_multiple_of(4) {
             bin.push(0);
         }
         let doc = json!({
@@ -209,7 +209,7 @@ impl Scene {
             "buffers": [{"byteLength": bin.len()}]
         });
         let mut js = serde_json::to_vec(&doc).expect("glTF JSON");
-        while js.len() % 4 != 0 {
+        while !js.len().is_multiple_of(4) {
             js.push(b' ');
         }
         let total = 12 + 8 + js.len() + 8 + bin.len();

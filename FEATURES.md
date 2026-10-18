@@ -221,13 +221,14 @@ Status: ✅ done, 🚧 partial, 🐛 buggy, 📋 planned, 💡 idea.
 - 💡 **DEMO-10 rig scene**: the P2439 stand with sensors, cameras and lights; a real rig's live data beside the twin.
 - 💡 **DEMO-11 WASM**: core and twin in the browser, nothing to install.
 - 💡 **DEMO-12 replay and faults**: deterministic replay from seed and input log, fault injection from the UI.
-- 🚧 **DEMO-13 motor from CAD**: `motor_cad`, a pure-Rust import of STEP assemblies (monstertruck for B-rep and
+- ✅ **DEMO-13 motor from CAD**: `motor_cad`, a pure-Rust import of STEP assemblies (monstertruck for B-rep and
   meshing, our own pass for colours, layers and units) into parts classified by role (shaft, rotor, magnet, stator,
   winding, bearing, housing, fastener, PCB, wiring, sensor) from layered evidence with a confidence: an override file,
   `[role]` tags (the naming convention for Roman's SolidWorks/FreeCAD models), keywords in several languages, colours,
-  and geometry about the motor axis (slot and pole counts, rings of similar parts, bearings from balls); a report, a
+  and geometry about the motor axis (slot and pole counts, rings of similar parts, bearings from balls, lamination
+  stacks); a report, a
   scene as glTF with roles in the extras; parametric test motors (12N14P outrunner, NEMA17 hybrid stepper) written to
-  STEP. Fused single solids are not split (P2630).
+  STEP. The convention and STEP export: `motor_cad/README.md`. Fused single solids are not split (P2630).
 
 ## CLI (`CLI`)
 

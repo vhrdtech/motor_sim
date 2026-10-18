@@ -143,7 +143,7 @@ pub fn genus(mesh: &Mesh) -> Option<i64> {
     }
     let mut edges = std::collections::HashMap::new();
     let mut faces = 0i64;
-    for t in mesh.indices.chunks_exact(3) {
+    for t in mesh.indices.as_chunks::<3>().0 {
         let v = [vid[t[0] as usize], vid[t[1] as usize], vid[t[2] as usize]];
         if v[0] == v[1] || v[1] == v[2] || v[0] == v[2] {
             continue;

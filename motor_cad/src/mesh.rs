@@ -93,7 +93,7 @@ impl Aabb {
 
 impl Mesh {
     pub fn triangles(&self) -> impl Iterator<Item = [V3; 3]> + '_ {
-        self.indices.chunks_exact(3).map(|t| {
+        self.indices.as_chunks::<3>().0.iter().map(|t| {
             [
                 v64(self.positions[t[0] as usize]),
                 v64(self.positions[t[1] as usize]),
@@ -210,7 +210,7 @@ impl Mesh {
                 by_pos.insert(key, i);
             }
         }
-        for t in self.indices.chunks_exact(3) {
+        for t in self.indices.as_chunks::<3>().0 {
             let a = find(&mut parent, t[0] as usize);
             for &k in &t[1..] {
                 let b = find(&mut parent, k as usize);
@@ -220,7 +220,7 @@ impl Mesh {
         let mut comp_of_root = std::collections::HashMap::new();
         let mut comps: Vec<Mesh> = Vec::new();
         let mut remap: Vec<Option<(usize, u32)>> = vec![None; n];
-        for t in self.indices.chunks_exact(3) {
+        for t in self.indices.as_chunks::<3>().0 {
             let root = find(&mut parent, t[0] as usize);
             let ci = *comp_of_root.entry(root).or_insert_with(|| {
                 comps.push(Mesh::default());

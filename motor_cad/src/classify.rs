@@ -146,8 +146,8 @@ fn name_evidence(
             if let Some(rot) = t.rotating {
                 rotating.get_or_insert(rot);
             }
-        } else if let Some((r, kw)) = role::keyword_roles(a).into_iter().next() {
-            if matches!(
+        } else if let Some((r, kw)) = role::keyword_roles(a).into_iter().next()
+            && matches!(
                 r,
                 Role::Bearing
                     | Role::Fastener
@@ -155,14 +155,14 @@ fn name_evidence(
                     | Role::Pcb
                     | Role::Sensor
                     | Role::Winding
-            ) {
-                ev.push(Evidence {
-                    role: r,
-                    weight: w * 0.8,
-                    source: Source::Path,
-                    why: format!("'{kw}' in assembly '{a}'"),
-                });
-            }
+            )
+        {
+            ev.push(Evidence {
+                role: r,
+                weight: w * 0.8,
+                source: Source::Path,
+                why: format!("'{kw}' in assembly '{a}'"),
+            });
         }
     }
 }
