@@ -10,6 +10,10 @@ lint:
     cargo clippy --workspace --all-targets -- -D warnings
     cargo build -p motor_sim --target thumbv7em-none-eabihf
 
+# ns per Motor::step per configuration, and the thumbv7em code size of motor_sim, against motor_bench/baseline.tsv
+bench:
+    cargo run -p motor_bench --release
+
 # The motor demo CLI (`motor_demo`) into ~/.cargo/bin
 install: test
     cargo install --locked --path motor_demo

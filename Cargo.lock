@@ -713,6 +713,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "motor_bench"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "console",
+ "libc",
+ "motor_sim",
+]
+
+[[package]]
 name = "motor_demo"
 version = "0.1.0"
 dependencies = [

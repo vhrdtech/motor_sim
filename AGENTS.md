@@ -19,6 +19,10 @@ The repo is a Cargo workspace:
   (`docs/examples/motor_demo.md`, `docs/api/observing.md`), update it there when the demo changes what it shows.
 - Later (FEATURES roadmap): `motor_model`, `motor_ident`, `motor_rig`, `motor_fem`, the `motor` CLI, `motor_py` and the
   Bevy twin `motor_twin` (DEMO-2). Heavy std/GUI dependencies go into such crates, never into `motor_sim`.
+- `motor_bench/`: `just bench` (MS-8), std only, outside `motor_sim`'s own dependencies. Measures ns per
+  `Motor::step` per configuration and the `thumbv7em` code size of `motor_sim` per cargo feature, against
+  `motor_bench/baseline.tsv` (committed, machine-specific), flagging a >20% regression; `-- --update` re-measures
+  and rewrites it after a deliberate cost change.
 
 The demo depends on wire_weaver crates by path, from a checkout next to this one (`../wire_weaver`, declared once
 in the root `[workspace.dependencies]`). `just deps-pull` brings it to its main; when a wire_weaver change breaks
@@ -36,6 +40,7 @@ matching item in the same change.
 ```sh
 just test       # cargo nextest run --workspace + doctests
 just lint       # fmt --check, clippy -D warnings, no_std build of motor_sim for thumbv7em-none-eabihf
+just bench      # motor_bench: ns per Motor::step and thumbv7em code size, against baseline.tsv (MS-8)
 just install    # tests, then installs the motor_demo CLI
 just deps-pull  # bring ../wire_weaver up to its main
 just deploy     # deps-pull, bring this checkout up to main, install

@@ -1,0 +1,19 @@
+[package]
+name = "motor_bench"
+version = "0.1.0"
+publish = false
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "ns per Motor::step per configuration and the thumbv7em code size of motor_sim, against a committed baseline (MS-8)"
+
+[[bin]]
+name = "motor_bench"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+console.workspace = true
+libc.workspace = true
+motor_sim.workspace = true

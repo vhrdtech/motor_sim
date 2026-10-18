@@ -12,6 +12,9 @@
   n = 32): `foc` 3.7 MB/s unbatched (periodic, every sample) down to 1.0 MB/s batched (3.7x), `control` 99 kB/s
   down to 26 kB/s (3.8x) — see wire_weaver's `docs/api/batching.md` for the full numbers and how they compare to
   the design's prediction (`tpm prj/P2401-wireweaver/design/observe_batching_measure.md`).
+- `motor_bench` (MS-8): `just bench` measures ns per `Motor::step` per configuration (preset × load × dt ×
+  sensors, thread CPU time) and the `thumbv7em-none-eabihf` `.text` size of `motor_sim` per cargo feature,
+  against a committed `baseline.tsv` that flags a >20% regression; `-- --update` re-measures and rewrites it.
 
 ### Changed
 

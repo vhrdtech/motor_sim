@@ -30,6 +30,7 @@ for _ in 0..25_000 {
 | `motor_sim` | the `no_std` plant above, builds for `thumbv7em-none-eabihf` |
 | `motor_demo_api` | a [wire_weaver](https://github.com/vhrdtech/wire_weaver) API: 52 `+observe` properties of a motor controller in three rate tiers |
 | `motor_demo` | a VESC-like FOC controller driving `motor_sim`, served as a wire_weaver device (in process or on UDP), and the `motor_demo` CLI that observes it |
+| `motor_bench` | `just bench`: ns per `Motor::step` per configuration and the `thumbv7em` code size of `motor_sim`, against a committed baseline that flags regressions (MS-8) |
 
 `motor_demo` builds against a wire_weaver checkout next to this one (`../wire_weaver`); `just deps-pull` brings it up to its main.
 

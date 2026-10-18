@@ -1,0 +1,29 @@
+# motor_bench baseline (MS-8): ns per Motor::step, thread CPU time (time.*), and thumbv7em-none-eabihf
+# .text bytes (codesize.*). Machine-specific either way: meaningful only against another run on this
+# same machine, ideally not a busy one (see the crate doc comment). Regenerate with
+# `cargo run -p motor_bench --release -- --update`.
+codesize.default	7552.0
+time.ipm.fan.dt10.sensors_off	169.2
+time.ipm.fan.dt10.sensors_on	178.0
+time.ipm.fan.dt40.sensors_off	162.7
+time.ipm.fan.dt40.sensors_on	179.7
+time.ipm.none.dt10.sensors_off	158.2
+time.ipm.none.dt10.sensors_on	152.6
+time.ipm.none.dt40.sensors_off	180.4
+time.ipm.none.dt40.sensors_on	159.4
+time.spm.fan.dt10.sensors_off	136.3
+time.spm.fan.dt10.sensors_on	139.9
+time.spm.fan.dt40.sensors_off	150.4
+time.spm.fan.dt40.sensors_on	151.4
+time.spm.none.dt10.sensors_off	154.7
+time.spm.none.dt10.sensors_on	154.9
+time.spm.none.dt40.sensors_off	149.7
+time.spm.none.dt40.sensors_on	161.2
+time.vesc.fan.dt10.sensors_off	158.3
+time.vesc.fan.dt10.sensors_on	172.5
+time.vesc.fan.dt40.sensors_off	153.6
+time.vesc.fan.dt40.sensors_on	171.9
+time.vesc.none.dt10.sensors_off	220.0
+time.vesc.none.dt10.sensors_on	148.9
+time.vesc.none.dt40.sensors_off	206.0
+time.vesc.none.dt40.sensors_on	210.1

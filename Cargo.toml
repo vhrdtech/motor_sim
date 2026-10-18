@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["motor_demo", "motor_demo_api", "motor_sim"]
+members = ["motor_bench", "motor_demo", "motor_demo_api", "motor_sim"]
 
 [workspace.package]
 authors = ["Roman Isaikin <romix.lab@gmail.com>"]
@@ -13,6 +13,7 @@ anyhow = "1"
 clap = "4.5"
 clap_complete = "4.6"
 console = "0.16"
+libc = "0.2"
 libm = "0.2"
 tokio = "1"
 tracing-subscriber = "0.3"
