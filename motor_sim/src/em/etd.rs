@@ -125,36 +125,45 @@ pub(crate) fn advance<M: Machine>(
     };
     let p0 = inv_a([p1[0] - c[0], p1[1] - c[1]]);
 
-    // e^{A·h} = e^{m·h}·(f0·I + f1·(A − m·I)), m = tr(A)/2, Δ = m² − det(A).
+    // e^{A·h} = e^{m·h}·(f0·I + f1·(A − m·I)), m = tr(A)/2, Δ = m² − det(A). For short steps e^{A·h} and the
+    // rotation are close to the identity, so both are formed minus the identity (expm1, half angles) and the step
+    // is an increment of x0: f32 rounding then scales with the change over the step, not with the state, and does
+    // not pile up over many short steps.
     let mm = 0.5 * (a11 + a22);
     let half_diff = 0.5 * (a11 - a22);
     let delta = half_diff * half_diff + a12 * a21;
     let dh2 = delta * h * h;
-    let (f0, f1) = if libm::fabsf(dh2) < 1e-4 {
+    // (f0 − 1, f1)
+    let (f0m1, f1) = if libm::fabsf(dh2) < 1e-4 {
         (
-            1.0 + dh2 / 2.0 + dh2 * dh2 / 24.0,
+            dh2 / 2.0 + dh2 * dh2 / 24.0,
             h * (1.0 + dh2 / 6.0 + dh2 * dh2 / 120.0),
         )
     } else if delta < 0.0 {
         let s = libm::sqrtf(-delta);
-        let (sn, cs) = libm::sincosf(s * h);
-        (cs, sn / s)
+        let (sn, cs) = libm::sincosf(0.5 * s * h);
+        (-2.0 * sn * sn, 2.0 * sn * cs / s)
     } else {
         let s = libm::sqrtf(delta);
-        (libm::coshf(s * h), libm::sinhf(s * h) / s)
+        let (sh, ch) = (libm::sinhf(0.5 * s * h), libm::coshf(0.5 * s * h));
+        (2.0 * sh * sh, 2.0 * sh * ch / s)
     };
-    let emh = libm::expf(mm * h);
-    let e11 = emh * (f0 + f1 * (a11 - mm));
+    let em1 = libm::expm1f(mm * h);
+    let emh = 1.0 + em1;
+    // E − I: e^{m·h}·f0 − 1 = em1 + (f0 − 1) + em1·(f0 − 1)
+    let d0 = em1 + f0m1 + em1 * f0m1;
+    let e11 = d0 + emh * f1 * (a11 - mm);
     let e12 = emh * f1 * a12;
     let e21 = emh * f1 * a21;
-    let e22 = emh * (f0 + f1 * (a22 - mm));
+    let e22 = d0 + emh * f1 * (a22 - mm);
 
-    let (sw, cw) = libm::sincosf(wf * h);
-    // x_p(h) = P·cos(ω_f h) + Q·sin(ω_f h) with Z = P + jQ
-    let xp_h = [z1.re * cw + z1.im * sw, z2.re * cw + z2.im * sw];
+    let (sh, ch) = libm::sincosf(0.5 * wf * h);
+    let (sw, cwm1) = (2.0 * sh * ch, -2.0 * sh * sh);
+    // x_p(h) − x_p(0) = P·(cos(ω_f h) − 1) + Q·sin(ω_f h) with Z = P + jQ
+    let dxp = [z1.re * cwm1 + z1.im * sw, z2.re * cwm1 + z2.im * sw];
     let y0 = [x0[0] - z1.re - p0[0], x0[1] - z2.re - p0[1]];
     [
-        e11 * y0[0] + e12 * y0[1] + xp_h[0] + p0[0] + p1[0] * h,
-        e21 * y0[0] + e22 * y0[1] + xp_h[1] + p0[1] + p1[1] * h,
+        x0[0] + (e11 * y0[0] + e12 * y0[1] + dxp[0] + p1[0] * h),
+        x0[1] + (e21 * y0[0] + e22 * y0[1] + dxp[1] + p1[1] * h),
     ]
 }
