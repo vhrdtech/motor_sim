@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-18
+
 ### Added
 
 - `motor_demo` observes every measured `Foc` and `Control` value in `Samples` mode (API-41/API-39,
