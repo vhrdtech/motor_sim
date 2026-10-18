@@ -1,7 +1,7 @@
 //! Seeded pseudo-random numbers: xoshiro128** seeded through splitmix64, identical on every target.
 
 /// Small, fast, seeded PRNG (xoshiro128**). Not cryptographic.
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub(crate) struct Rng {
     s: [u32; 4],
     spare_normal: Option<f32>,

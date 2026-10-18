@@ -64,9 +64,9 @@ impl Config {
     /// `current_max` is the drive's limit.
     pub fn from_params(p: &MotorParams, current_max: f32) -> Self {
         let tc = 0.2e-3;
-        let pp = p.pmsm.pole_pairs as f32;
-        let lambda = p.pmsm.flux_linkage_wb;
-        let l = 0.5 * (p.pmsm.ld_h + p.pmsm.lq_h);
+        let pp = p.machine.pole_pairs as f32;
+        let lambda = p.machine.flux_linkage_wb;
+        let l = 0.5 * (p.machine.ld_h + p.machine.lq_h);
         let kt = 1.5 * pp * lambda;
         // erpm per second per amp of q current
         let accel = kt / p.mech.inertia_kgm2 * 60.0 / TAU * pp;
@@ -74,13 +74,13 @@ impl Config {
         let speed_kp = bw / accel;
         Config {
             pole_pairs: pp,
-            rs: p.pmsm.rs_ohm,
-            ld: p.pmsm.ld_h,
-            lq: p.pmsm.lq_h,
+            rs: p.machine.rs_ohm,
+            ld: p.machine.ld_h,
+            lq: p.machine.lq_h,
             lambda,
             vdc: p.inverter.vdc_v,
             current_kp: l / tc,
-            current_ki: p.pmsm.rs_ohm / tc,
+            current_ki: p.machine.rs_ohm / tc,
             observer_gain: 1_000.0 / (lambda * lambda),
             pll_kp: 4_000.0,
             pll_ki: 4_000_000.0,

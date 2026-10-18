@@ -1,74 +1,29 @@
-//! [`Plant`]: the layered core with any [`Machine`], for what [`Motor`](crate::Motor) (a linear dq PMSM from
-//! [`MotorParams`]) can't express: a full inductance matrix, flux maps, the stationary frame, layer levels.
+//! [`Plant`]: a simulated motor with any [`Machine`]; [`Motor`](crate::Motor) is the one with MS-1's linear dq
+//! PMSM.
 
 use crate::Truth;
 use crate::drive::Drive;
 use crate::em::Machine;
 use crate::faults::Faults;
 use crate::mechanics::Load;
-use crate::nvh::NvhParams;
-use crate::params::{InverterParams, MechParams, MotorParams, SensorParams};
+use crate::multirate::SimClock;
+use crate::params::PlantParams;
 use crate::power::Carrier;
 use crate::sensors::Sensors;
-use crate::stack::{Core, Layers};
-use crate::thermal::ThermalParams;
+use crate::stack::Core;
 use crate::visit::{self, Visitor};
 
-/// Everything a [`Plant`] needs: the machine and the parameters of the other layers.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct PlantParams<M> {
-    /// Electromagnetics.
-    pub machine: M,
-    /// Mechanical parameters.
-    pub mech: MechParams,
-    /// Inverter.
-    pub inverter: InverterParams,
-    /// Sensors.
-    pub sensors: SensorParams,
-    /// Thermal layer.
-    pub thermal: ThermalParams,
-    /// Vibration and sound layer.
-    pub nvh: NvhParams,
-    /// Longest base substep, s (see [`MotorParams::max_substep_s`]).
-    pub max_substep_s: f32,
-}
-
-impl<M> PlantParams<M> {
-    /// `machine` with mechanics, inverter, sensors and substep of `p`; thermal and NVH off.
-    pub fn with_machine(p: &MotorParams, machine: M) -> Self {
-        PlantParams {
-            machine,
-            mech: p.mech,
-            inverter: p.inverter,
-            sensors: p.sensors,
-            thermal: ThermalParams::OFF,
-            nvh: NvhParams::OFF,
-            max_substep_s: p.max_substep_s,
-        }
-    }
-
-    fn layers(&self) -> Layers<'_, M> {
-        Layers {
-            machine: &self.machine,
-            mech: &self.mech,
-            inverter: &self.inverter,
-            sensors: &self.sensors,
-            thermal: &self.thermal,
-            nvh: &self.nvh,
-            max_substep_s: self.max_substep_s,
-        }
-    }
-}
-
-/// A simulated motor with any [`Machine`]: the same layers, step and outputs as [`Motor`](crate::Motor).
+/// A simulated motor: inverter, electromagnetics (the [`Machine`] `M`), mechanics, load, sensors and faults, run
+/// as a stack of layers in a fixed order per base substep. The true state is in [`Truth`]; a controller should only
+/// read [`Sensors`].
 ///
 /// ```
-/// use motor_sim::{Drive, LinearDq, Load, Plant, PlantParams, presets};
+/// use motor_sim::{Drive, LinearDq, Load, Plant, presets};
 ///
 /// let base = presets::ipm();
 /// // The IPM with a mutual dq inductance (linearised cross-saturation).
-/// let machine = LinearDq::from_pmsm(&base.pmsm, 0.03e-3);
-/// let mut plant = Plant::new(PlantParams::with_machine(&base, machine), 7);
+/// let machine = LinearDq::from_pmsm(&base.machine, 0.03e-3);
+/// let mut plant = Plant::new(base.with_machine(machine), 7);
 /// plant.set_load(Load::Locked);
 /// for _ in 0..1000 {
 ///     plant.step(&Drive::AlphaBeta { v_alpha_v: 0.0, v_beta_v: 1.0 }, 10e-6);
@@ -81,18 +36,25 @@ pub struct Plant<M: Machine> {
     core: Core,
 }
 
+/// The whole state of a [`Plant`] (every layer, load, faults, carrier, random generators, clock), without its
+/// parameters: a copy taken by [`Plant::snapshot`] and put back by [`Plant::restore`], for replay, rewind and
+/// branching runs. Restoring and stepping with the same inputs repeats the run bit for bit.
+#[derive(Clone, Copy)]
+pub struct PlantState(Core);
+
 impl<M: Machine> Plant<M> {
     /// A plant at rest with zero current, no faults, a free shaft and no carrier. `seed` fixes noise and random
     /// faults.
     pub fn new(params: PlantParams<M>, seed: u64) -> Self {
-        let core = Core::new(&params.layers(), seed);
+        let core = Core::new(&params, seed);
         Plant { params, core }
     }
 
     /// Advance by `dt_s` seconds with `drive` held, then sample the sensors. Without a carrier `dt_s` is normally
-    /// one PWM period; with one, any length.
+    /// one PWM period; with one, any length. Longer steps are split into base substeps of at most
+    /// [`PlantParams::max_substep_s`].
     pub fn step(&mut self, drive: &Drive, dt_s: f32) {
-        self.core.step(&self.params.layers(), drive, dt_s);
+        self.core.step(&self.params, drive, dt_s);
     }
 
     /// The true state.
@@ -105,9 +67,24 @@ impl<M: Machine> Plant<M> {
         &self.core.sensors.last
     }
 
-    /// Flux linkage relative to the magnets in the machine's frame, V·s (the engine's state).
+    /// The simulation clock: base substeps taken and simulated time.
+    pub fn clock(&self) -> SimClock {
+        self.core.clock
+    }
+
+    /// Copy of the whole state.
+    pub fn snapshot(&self) -> PlantState {
+        PlantState(self.core)
+    }
+
+    /// Put back a state from [`Plant::snapshot`], exactly as it was. The parameters stay as they are now.
+    pub fn restore(&mut self, state: &PlantState) {
+        self.core = state.0;
+    }
+
+    /// Flux linkage relative to the magnets in the machine's frame, V·s (the electromagnetic state).
     pub fn flux(&self) -> [f32; 2] {
-        self.core.flux()
+        self.core.em.flux()
     }
 
     /// Parameters.
@@ -115,7 +92,8 @@ impl<M: Machine> Plant<M> {
         &self.params
     }
 
-    /// Change parameters between steps. The currents stay continuous across a change of the machine.
+    /// Change parameters between steps (a different DC link voltage, a heavier rotor, other inductances, ...). The
+    /// currents stay continuous across a change of the machine.
     pub fn params_mut(&mut self) -> &mut PlantParams<M> {
         self.core.params_changed();
         &mut self.params
@@ -126,19 +104,23 @@ impl<M: Machine> Plant<M> {
         &self.core.load
     }
 
-    /// Change the load; see [`Motor::set_load`](crate::Motor::set_load).
+    /// Change the load; it takes effect at the next step. Switching to [`Load::Inertia`] starts the second inertia
+    /// where the rotor is, at rest relative to it.
     pub fn set_load(&mut self, load: Load) {
         self.core.set_load(load);
     }
 
     /// The PWM carrier, if set.
     pub fn carrier(&self) -> Option<&Carrier> {
-        self.core.carrier.as_ref()
+        self.core.power.carrier.as_ref()
     }
 
-    /// Set or clear the PWM carrier; see [`Motor::set_carrier`](crate::Motor::set_carrier).
+    /// Set or clear the PWM carrier. Without one (the default) the duties of a step are its average, so a step
+    /// should be one PWM period. With one, the duties are compare values held over the step and every substep
+    /// gets the volt-seconds the legs really deliver within it, from the carrier phase at the simulated time:
+    /// steps shorter (or longer) than the PWM period see the ripple of the average voltage.
     pub fn set_carrier(&mut self, carrier: Option<Carrier>) {
-        self.core.carrier = carrier;
+        self.core.power.carrier = carrier;
     }
 
     /// Active faults.
@@ -153,12 +135,14 @@ impl<M: Machine> Plant<M> {
 
     /// Energy in the winding field from the machine's map (1.5·W̃), J.
     pub fn magnetic_energy_j(&self) -> f64 {
-        self.core.magnetic_energy_j(&self.params.machine)
+        self.core
+            .em
+            .field_energy_j(&self.params.machine, self.core.truth.theta_e)
     }
 
     /// Kinetic energy of the rotor (without a [`Load::Inertia`]), J.
     pub fn kinetic_energy_j(&self) -> f64 {
-        self.core.kinetic_energy_j(&self.params.mech)
+        self.core.kinetic_energy_j(self.params.mech.inertia_kgm2)
     }
 
     /// List every variable with name, unit, rate tier and current value: [`Truth`] first, then [`Sensors`].

@@ -4,6 +4,25 @@
 //! Order within a base substep: power stage → electromagnetics → mechanics → slow layers whose clock is due
 //! (thermal, then NVH). Sensors sample once at the end of [`Motor::step`](crate::Motor::step).
 
+/// The simulation clock: base substeps taken and simulated time. Simulated time is the only time the plant knows;
+/// how it relates to wall-clock time (faster, slower, paused) is up to whoever calls `step`.
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
+pub struct SimClock {
+    /// Base substeps since the start.
+    pub ticks: u64,
+    /// Simulated time, s.
+    pub time_s: f64,
+}
+
+impl SimClock {
+    /// Count one base substep of `h_s` seconds.
+    #[inline]
+    pub(crate) fn tick(&mut self, h_s: f32) {
+        self.ticks += 1;
+        self.time_s += h_s as f64;
+    }
+}
+
 /// Clock of a slow layer: due once every `every` base substeps, with the time since it was last due.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct SlowClock {

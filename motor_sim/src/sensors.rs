@@ -19,6 +19,7 @@ pub struct Sensors {
     pub hall: u8,
 }
 
+#[derive(Clone, Copy)]
 pub(crate) struct SensorModel {
     noise: Rng,
     faults: Rng,

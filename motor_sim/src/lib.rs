@@ -1,7 +1,7 @@
 //! Deterministic, `no_std` electric motor simulator for testing motor controllers in software.
 //!
 //! A [`Motor`] is the plant (a PMSM in dq, solved exactly per step), an average inverter, rotor mechanics and a
-//! [`Load`]. The true state is in [`Truth`]; the controller should only read [`Sensors`] (quantised, noisy,
+//! [`Load`]; it is a [`Plant`] with the linear machine of the presets. The true state is in [`Truth`]; the controller should only read [`Sensors`] (quantised, noisy,
 //! offset ADC readings, encoder, halls). [`Faults`] break the sensor and inverter paths, never the physics. The
 //! same parameters and seed give the same run on every target.
 //!
@@ -27,10 +27,11 @@
 //! detail: drive ([`Drive`]), power stage (average legs, optionally through a PWM [`Carrier`] so a step need not be
 //! one PWM period), electromagnetics (a [`Machine`]: flux as state, current from its map, torque from the
 //! co-energy), mechanics and [`Load`], thermal and NVH at slower integer rates ([`ThermalParams`], [`NvhParams`]:
-//! slots for now), sensors and faults. [`Motor`] runs it with the linear dq machine of its [`PmsmParams`];
-//! [`Plant`] runs it with any [`Machine`]: a full inductance matrix ([`LinearDq`]), the stationary frame
+//! slots for now), sensors and faults, exchanging plain-data values once per base substep. [`Plant`] runs
+//! it with any [`Machine`]: MS-1's [`PmsmParams`] ([`Motor`]), a full inductance matrix ([`LinearDq`]), the stationary frame
 //! ([`LinearAlphaBeta`]), or flux maps on uniform tables ([`MapMachine`] over [`Grid2`]/[`Grid3`], feature `maps`,
-//! on by default).
+//! on by default). Simulated time is explicit ([`SimClock`]) and the whole state is a copy away
+//! ([`Plant::snapshot`], [`Plant::restore`]): pause, step, rewind and replay are up to the caller.
 #![no_std]
 #![deny(missing_docs)]
 
@@ -60,15 +61,14 @@ pub use faults::{Faults, InverterFaults, LegFault, SensorFaults};
 #[cfg(feature = "maps")]
 pub use grid::{Axis, Grid2, Grid3};
 pub use mechanics::Load;
+pub use multirate::SimClock;
 pub use nvh::{NvhLevel, NvhParams};
-pub use params::{InverterParams, MechParams, MotorParams, PmsmParams, SensorParams};
-pub use plant::{Plant, PlantParams};
+pub use params::{InverterParams, MechParams, MotorParams, PlantParams, PmsmParams, SensorParams};
+pub use plant::{Plant, PlantState};
 pub use power::{Align, Carrier};
 pub use sensors::Sensors;
 pub use thermal::{ThermalLevel, ThermalParams};
 pub use visit::{Source, Tier, Value, Var, Visitor};
-
-use crate::stack::{Core, Layers};
 
 /// The true physical state after the last step. Angles are of the rotor d axis from phase a.
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
@@ -143,112 +143,8 @@ pub struct Truth {
     pub load_work_j: f64,
 }
 
-/// A simulated motor: plant, inverter, mechanics, load, sensors and faults. The linear dq PMSM of
-/// [`MotorParams`]; [`Plant`] runs the same layers with any [`Machine`].
-pub struct Motor {
-    params: MotorParams,
-    core: Core,
-}
-
-impl Motor {
-    /// A motor at rest with zero current, no faults and a free shaft. `seed` fixes noise and random faults.
-    pub fn new(params: MotorParams, seed: u64) -> Self {
-        let core = Core::new(&layers(&params), seed);
-        Motor { params, core }
-    }
-
-    /// Advance by `dt_s` seconds (normally one PWM period; any length with a [carrier](Motor::set_carrier)) with
-    /// `drive` held, then sample the sensors.
-    pub fn step(&mut self, drive: &Drive, dt_s: f32) {
-        self.core.step(&layers(&self.params), drive, dt_s);
-    }
-
-    /// The true state.
-    pub fn truth(&self) -> &Truth {
-        &self.core.truth
-    }
-
-    /// The sensor readings taken at the end of the last step.
-    pub fn sensors(&self) -> &Sensors {
-        &self.core.sensors.last
-    }
-
-    /// Parameters.
-    pub fn params(&self) -> &MotorParams {
-        &self.params
-    }
-
-    /// Change parameters between steps (a different DC link voltage, a heavier rotor, ...). The currents stay
-    /// continuous across a change of inductances.
-    pub fn params_mut(&mut self) -> &mut MotorParams {
-        self.core.params_changed();
-        &mut self.params
-    }
-
-    /// The load on the shaft.
-    pub fn load(&self) -> &Load {
-        &self.core.load
-    }
-
-    /// Change the load; it takes effect at the next step. Switching to [`Load::Inertia`] starts the second inertia
-    /// where the rotor is, at rest relative to it.
-    pub fn set_load(&mut self, load: Load) {
-        self.core.set_load(load);
-    }
-
-    /// The PWM carrier, if set.
-    pub fn carrier(&self) -> Option<&Carrier> {
-        self.core.carrier.as_ref()
-    }
-
-    /// Set or clear the PWM carrier. Without one (the default) the duties of a step are its average, so a step
-    /// should be one PWM period. With one, the duties are compare values held over the step and every substep
-    /// gets the volt-seconds the legs really deliver within it, from the carrier phase at the simulated time:
-    /// steps shorter (or longer) than the PWM period see the ripple of the average voltage.
-    pub fn set_carrier(&mut self, carrier: Option<Carrier>) {
-        self.core.carrier = carrier;
-    }
-
-    /// Active faults.
-    pub fn faults(&self) -> &Faults {
-        &self.core.faults
-    }
-
-    /// Inject or clear faults; they act from the next step.
-    pub fn faults_mut(&mut self) -> &mut Faults {
-        &mut self.core.faults
-    }
-
-    /// Energy stored in the winding inductances, J.
-    pub fn magnetic_energy_j(&self) -> f64 {
-        let (p, t) = (&self.params.pmsm, &self.core.truth);
-        let (id, iq) = (t.i_d as f64, t.i_q as f64);
-        0.75 * (p.ld_h as f64 * id * id + p.lq_h as f64 * iq * iq)
-    }
-
-    /// Kinetic energy of the rotor (without a [`Load::Inertia`]), J.
-    pub fn kinetic_energy_j(&self) -> f64 {
-        self.core.kinetic_energy_j(&self.params.mech)
-    }
-
-    /// List every variable with name, unit, rate tier and current value: [`Truth`] first, then [`Sensors`].
-    pub fn visit(&self, visitor: &mut impl Visitor) {
-        visit::visit(&self.core.truth, &self.core.sensors.last, visitor)
-    }
-}
-
-/// The layers of a [`Motor`]: its PMSM as the machine, thermal and NVH off.
-fn layers(p: &MotorParams) -> Layers<'_, PmsmParams> {
-    Layers {
-        machine: &p.pmsm,
-        mech: &p.mech,
-        inverter: &p.inverter,
-        sensors: &p.sensors,
-        thermal: &ThermalParams::OFF,
-        nvh: &NvhParams::OFF,
-        max_substep_s: p.max_substep_s,
-    }
-}
+/// A simulated motor with MS-1's linear dq PMSM ([`PmsmParams`]): the presets' plant.
+pub type Motor = Plant<PmsmParams>;
 
 /// `x` wrapped into [0, 2π).
 pub(crate) fn wrap_tau(x: f64) -> f64 {

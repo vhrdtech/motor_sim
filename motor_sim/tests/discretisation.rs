@@ -65,7 +65,7 @@ fn run_both(
     steps: usize,
     n: u32,
 ) -> Vec<((f64, f64), (f64, f64))> {
-    let p = m.params().pmsm;
+    let p = m.params().machine;
     let w = (p.pole_pairs as f32 * m.truth().omega_m) as f64;
     let mut x = (0.0, 0.0);
     let mut out = vec![];
@@ -93,7 +93,7 @@ fn run_both(
 #[test]
 fn locked_rotor_step_matches_rl_response() {
     let params = presets::vesc_hobby_outrunner();
-    let p = params.pmsm;
+    let p = params.machine;
     let mut m = Motor::new(params, 1);
     m.set_load(Load::Locked);
     let v = 0.3f32;
@@ -119,7 +119,7 @@ fn locked_rotor_step_matches_rl_response() {
 #[test]
 fn spm_at_speed_step_matches_analytic() {
     let params = presets::vesc_hobby_outrunner();
-    let p = params.pmsm;
+    let p = params.machine;
     let omega_m = 600.0; // ≈ 5700 rpm, ωe = 4200 rad/s: ωe·h = 0.17 rad per PWM period
     let th0 = spinning(params, omega_m).truth().theta_e as f64;
     let (r, l, lam) = (p.rs_ohm as f64, p.ld_h as f64, p.flux_linkage_wb as f64);
@@ -189,9 +189,9 @@ fn ipm_at_speed_matches_fine_reference() {
 #[test]
 fn stiff_motor_stays_stable() {
     let mut params = presets::vesc_hobby_outrunner();
-    params.pmsm.ld_h = 1e-6;
-    params.pmsm.lq_h = 1e-6;
-    params.pmsm.rs_ohm = 0.12; // h·R/L = 4.8
+    params.machine.ld_h = 1e-6;
+    params.machine.lq_h = 1e-6;
+    params.machine.rs_ohm = 0.12; // h·R/L = 4.8
     let mut m = Motor::new(params, 1);
     m.set_load(Load::Locked);
     let res = run_both(&mut m, (0.6, 0.0), 50, 1);

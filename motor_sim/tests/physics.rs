@@ -18,7 +18,7 @@ fn dq(m: &Motor, v_d: f32, v_q: f32) -> Drive {
 /// Voltage-mode FOC with the d-axis coupling cancelled (v_d = −ωe·Lq·i_q), so i_d → 0 at steady state.
 fn decoupled(m: &Motor, v_q: f32) -> Drive {
     let t = m.truth();
-    dq(m, -t.omega_e * m.params().pmsm.lq_h * t.i_q, v_q)
+    dq(m, -t.omega_e * m.params().machine.lq_h * t.i_q, v_q)
 }
 
 fn run(m: &mut Motor, seconds: f32, mut drive: impl FnMut(&Motor) -> Drive) {
@@ -31,7 +31,7 @@ fn run(m: &mut Motor, seconds: f32, mut drive: impl FnMut(&Motor) -> Drive) {
 #[test]
 fn steady_state_speed_and_torque_match_closed_form() {
     let params = presets::industrial_spm();
-    let (p, mech) = (params.pmsm, params.mech);
+    let (p, mech) = (params.machine, params.mech);
     let mut m = Motor::new(params, 1);
     let t_load = 0.2;
     m.set_load(Load::Constant { torque_nm: t_load });
@@ -58,7 +58,7 @@ fn steady_state_speed_and_torque_match_closed_form() {
 #[test]
 fn locked_rotor_current_and_reluctance_torque() {
     let params = presets::ipm();
-    let p = params.pmsm;
+    let p = params.machine;
     let mut m = Motor::new(params, 1);
     m.set_load(Load::Locked);
     // Rotor at θe = 0, so αβ = dq: v = R·i for i_d = −20 A, i_q = 30 A.
@@ -145,7 +145,7 @@ fn profile_and_speed_loads() {
 fn coulomb_friction_holds_and_stops_the_rotor() {
     let mut m = Motor::new(presets::industrial_spm(), 1);
     // Torque below breakaway: no motion.
-    let p = m.params().pmsm;
+    let p = m.params().machine;
     let i_hold = 0.5 * m.params().mech.coulomb_nm / p.kt_nm_per_a();
     run(&mut m, 0.05, |m| dq(m, 0.0, p.rs_ohm * i_hold));
     assert_eq!(m.truth().omega_m, 0.0);

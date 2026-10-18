@@ -4,7 +4,7 @@
 
 use motor_sim::{
     Axis, Carrier, Drive, Grid2, Grid3, LinearAlphaBeta, LinearDq, Load, Machine, MapMachine,
-    Motor, MotorParams, Plant, PlantParams, PmsmParams, presets,
+    Motor, MotorParams, Plant, PmsmParams, presets,
 };
 
 const DT: f32 = 1.0 / 25_000.0;
@@ -154,7 +154,7 @@ fn linear_engine_reproduces_ms1_electrical_step() {
             omega_m_rad_s: omega_m,
         });
         m.step(&Drive::Off, DT); // up to speed
-        let w = params.pmsm.pole_pairs as f32 * omega_m;
+        let w = params.machine.pole_pairs as f32 * omega_m;
         let mut old = (0.0f32, 0.0f32);
         let mut exact = (0.0f64, 0.0f64);
         let (mut err, mut err_old, mut peak) = (0.0f64, 0.0f64, 0.0f64);
@@ -171,9 +171,9 @@ fn linear_engine_reproduces_ms1_electrical_step() {
             let t = m.truth();
             // The voltage after the duty stage, as the motor applied it.
             let v = (t.v_alpha, t.v_beta);
-            old = ms1_step(&params.pmsm, old, v, th, w, DT);
+            old = ms1_step(&params.machine, old, v, th, w, DT);
             exact = ms1_step_f64(
-                &params.pmsm,
+                &params.machine,
                 exact,
                 (v.0 as f64, v.1 as f64),
                 th as f64,
@@ -198,7 +198,7 @@ fn linear_engine_reproduces_ms1_electrical_step() {
 /// differences relative to their peaks.
 fn compare<M: Machine>(params: MotorParams, machine: M, dt: f32, n: usize) -> (f32, f32) {
     let mut a = Motor::new(params, 3);
-    let mut b = Plant::new(PlantParams::with_machine(&params, machine), 3);
+    let mut b = Plant::new(params.with_machine(machine), 3);
     a.set_load(Load::Fan {
         k_nms2_per_rad2: 1e-5,
     });
@@ -245,18 +245,18 @@ fn linear_tables(p: &PmsmParams, n: u32, span_wb: f32) -> [Vec<f32>; 3] {
 fn linear_machines_reproduce_motor() {
     let params = presets::ipm();
     let n = 25_000; // 1 s: up to speed and braking
-    let (e, w) = compare(params, LinearDq::from_pmsm(&params.pmsm, 0.0), DT, n);
+    let (e, w) = compare(params, LinearDq::from_pmsm(&params.machine, 0.0), DT, n);
     eprintln!("LinearDq, Ldq = 0: current {e:.2e}, speed {w:.2e} relative");
     assert!(e < 1e-5 && w < 1e-5);
 
     let span = 0.08;
-    let tables = linear_tables(&params.pmsm, 9, span);
+    let tables = linear_tables(&params.machine, 9, span);
     let ax = Axis::new(-span, span, 9).unwrap();
     let g = |k: usize| Grid2::new(ax, ax, &tables[k]).unwrap();
     let map: MapMachine<Grid2> = MapMachine::new(
-        params.pmsm.pole_pairs,
-        params.pmsm.rs_ohm,
-        [params.pmsm.flux_linkage_wb, 0.0],
+        params.machine.pole_pairs,
+        params.machine.rs_ohm,
+        [params.machine.flux_linkage_wb, 0.0],
         [g(0), g(1)],
         g(2),
     );
@@ -265,7 +265,7 @@ fn linear_machines_reproduce_motor() {
     assert!(e < 1e-5 && w < 1e-5);
 
     // The stationary frame is second order in the step (inductance and back-EMF turn within it): close at 10 µs.
-    let (e, w) = compare(params, LinearAlphaBeta(params.pmsm), 10e-6, 4 * n);
+    let (e, w) = compare(params, LinearAlphaBeta(params.machine), 10e-6, 4 * n);
     eprintln!("LinearAlphaBeta at 10 µs: current {e:.2e}, speed {w:.2e} relative");
     assert!(e < 5e-3 && w < 1e-3);
 }
@@ -326,7 +326,7 @@ fn sweep<M: Machine + Copy>(
     reference: impl Fn(f64) -> Vec<[f64; 2]>,
 ) -> Vec<(u32, f64)> {
     let spinning = || {
-        let mut plant = Plant::new(PlantParams::with_machine(params, machine), 1);
+        let mut plant = Plant::new(params.with_machine(machine), 1);
         plant.set_load(Load::Speed {
             omega_m_rad_s: omega_m,
         });
@@ -364,7 +364,7 @@ fn sweep<M: Machine + Copy>(
 fn constant_non_diagonal_inductance_against_rk4() {
     let params = presets::ipm();
     let ldq = 0.08e-3; // Ldq² = 0.07·Ld·Lq
-    let machine = LinearDq::from_pmsm(&params.pmsm, ldq);
+    let machine = LinearDq::from_pmsm(&params.machine, ldq);
     let (ld, lq, ldq) = (machine.ld_h as f64, machine.lq_h as f64, ldq as f64);
     let det = ld * lq - ldq * ldq;
     let gamma = move |x: [f64; 2], _th: f64| {
@@ -401,7 +401,7 @@ fn constant_non_diagonal_inductance_against_rk4() {
     }
 
     // Torque includes the mutual term: 1.5·p·(λ·iq + (Ld − Lq)·id·iq + Ldq·(iq² − id²)).
-    let mut plant = Plant::new(PlantParams::with_machine(&params, machine), 1);
+    let mut plant = Plant::new(params.with_machine(machine), 1);
     plant.set_load(Load::Locked);
     for _ in 0..3000 {
         plant.step(
@@ -413,7 +413,7 @@ fn constant_non_diagonal_inductance_against_rk4() {
         );
     }
     let t = plant.truth();
-    let p = &params.pmsm;
+    let p = &params.machine;
     let (id, iq) = (t.i_d, t.i_q);
     assert!((id + 1.0 / p.rs_ohm).abs() < 1e-3 && (iq - 1.5 / p.rs_ohm).abs() < 1e-3);
     let te = 1.5
@@ -512,7 +512,7 @@ fn map_3d<'a>(p: &PmsmParams, t: &'a [Vec<f32>; 3]) -> MapMachine<Grid3<'a>> {
 #[test]
 fn saturated_map_converges_against_rk4() {
     let params = presets::ipm();
-    let p = params.pmsm;
+    let p = params.machine;
     let tables = tables_2d(&p);
     let machine = map_2d(&p, &tables);
     let omega_m = 500.0;
@@ -561,7 +561,7 @@ fn dq_drive(t: &motor_sim::Truth, dt: f32, vq: f32) -> Drive {
 /// DC link energy = field + copper + friction + load + kinetic, with saturated maps (with and without angle
 /// dependence), through acceleration and regenerative braking.
 fn energy_balance<M: Machine>(params: &MotorParams, machine: M, tol: f64) {
-    let mut plant = Plant::new(PlantParams::with_machine(params, machine), 1);
+    let mut plant = Plant::new(params.with_machine(machine), 1);
     plant.set_load(Load::Fan {
         k_nms2_per_rad2: 1e-5,
     });
@@ -611,7 +611,7 @@ fn energy_balance<M: Machine>(params: &MotorParams, machine: M, tol: f64) {
 #[test]
 fn energy_balance_with_maps() {
     let params = presets::ipm();
-    let p = params.pmsm;
+    let p = params.machine;
     let t2 = tables_2d(&p);
     energy_balance(&params, map_2d(&p, &t2), 2e-4);
     let t3 = tables_3d(&p, 0.05);
@@ -680,9 +680,49 @@ fn params_change_keeps_currents_continuous() {
         m.step(&d, DT);
     }
     let before = (m.truth().i_d, m.truth().i_q);
-    m.params_mut().pmsm.ld_h *= 2.0;
-    m.params_mut().pmsm.lq_h *= 0.5;
+    m.params_mut().machine.ld_h *= 2.0;
+    m.params_mut().machine.lq_h *= 0.5;
     m.step(&d, 1e-9);
     let after = (m.truth().i_d, m.truth().i_q);
     assert!((after.0 - before.0).abs() < 1e-4 && (after.1 - before.1).abs() < 1e-4);
+}
+
+/// A snapshot restored and stepped with the same inputs repeats the run bit for bit: noise, random faults,
+/// carrier, mechanics and the clock included.
+#[test]
+fn snapshot_restore_replays_bit_for_bit() {
+    let mut m = Motor::new(presets::vesc_hobby_outrunner(), 9);
+    m.set_load(Load::Inertia {
+        inertia_kgm2: 1e-5,
+        stiffness_nm_per_rad: 0.5,
+        damping_nms_per_rad: 1e-4,
+        viscous_nms_per_rad: 1e-5,
+    });
+    m.set_carrier(Some(Carrier::center(25e3)));
+    m.faults_mut().inverter.missed_pulse_probability = 0.01;
+    m.faults_mut().sensor.current_glitch_probability = 0.01;
+    let drive = |k: usize, m: &Motor| dq_drive(m.truth(), 10e-6, 2.0 + (k % 7) as f32 * 0.1);
+    for k in 0..3000 {
+        let d = drive(k, &m);
+        m.step(&d, 10e-6);
+    }
+    let snap = m.snapshot();
+    let clock = m.clock();
+    assert_eq!(clock.ticks, 3000);
+    assert!((clock.time_s - 0.03).abs() < 1e-9 && clock.time_s == m.truth().time_s);
+    let run = |m: &mut Motor| {
+        (0..2000)
+            .map(|k| {
+                let d = drive(k, m);
+                m.step(&d, 10e-6);
+                (*m.truth(), *m.sensors())
+            })
+            .collect::<Vec<_>>()
+    };
+    let first = run(&mut m);
+    m.restore(&snap);
+    assert_eq!(m.clock(), clock);
+    let second = run(&mut m);
+    assert!(first == second, "replay differs");
+    assert!(first.last().unwrap().0.omega_m > 10.0);
 }

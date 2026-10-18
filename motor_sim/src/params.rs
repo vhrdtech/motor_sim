@@ -1,5 +1,8 @@
 //! Model parameters. All SI: Ω, H, Wb, kg·m², N·m, V, A, rad.
 
+use crate::nvh::NvhParams;
+use crate::thermal::ThermalParams;
+
 /// Electrical parameters of a PMSM in the rotor (dq) frame, amplitude-invariant transform.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PmsmParams {
@@ -65,18 +68,42 @@ pub struct SensorParams {
     pub hall_offset_rad: f32,
 }
 
-/// Everything [`Motor`](crate::Motor) needs.
+/// Everything a [`Plant`](crate::Plant) needs: the machine (electromagnetics) and the parameters of the other
+/// layers. [`MotorParams`] is the one with MS-1's linear dq PMSM.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct MotorParams {
-    /// Electrical parameters.
-    pub pmsm: PmsmParams,
+pub struct PlantParams<M> {
+    /// Electromagnetics: the machine and its map.
+    pub machine: M,
     /// Mechanical parameters.
     pub mech: MechParams,
     /// Inverter.
     pub inverter: InverterParams,
     /// Sensors.
     pub sensors: SensorParams,
-    /// Longest internal step, s: [`Motor::step`](crate::Motor::step) splits longer `dt` into substeps so the
-    /// mechanics (springs, friction) stay accurate. 50 µs by default; the electrical part is exact at any step.
+    /// Thermal layer.
+    pub thermal: ThermalParams,
+    /// Vibration and sound layer.
+    pub nvh: NvhParams,
+    /// Longest base substep, s: [`Plant::step`](crate::Plant::step) splits longer `dt` into substeps so the
+    /// mechanics (springs, friction) stay accurate. 50 µs by default; the electrical part is exact at any step for a
+    /// linear machine.
     pub max_substep_s: f32,
+}
+
+/// Parameters of a [`Motor`](crate::Motor): a linear dq PMSM.
+pub type MotorParams = PlantParams<PmsmParams>;
+
+impl<M> PlantParams<M> {
+    /// The same mechanics, inverter, sensors, slow layers and substep with another machine.
+    pub fn with_machine<N>(&self, machine: N) -> PlantParams<N> {
+        PlantParams {
+            machine,
+            mech: self.mech,
+            inverter: self.inverter,
+            sensors: self.sensors,
+            thermal: self.thermal,
+            nvh: self.nvh,
+            max_substep_s: self.max_substep_s,
+        }
+    }
 }

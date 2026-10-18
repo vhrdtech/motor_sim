@@ -8,6 +8,7 @@
 
 mod etd;
 mod frame;
+mod layer;
 mod linear;
 mod machine;
 #[cfg(feature = "maps")]
@@ -16,6 +17,7 @@ mod table;
 pub(crate) use etd::advance;
 pub(crate) use frame::park;
 pub use frame::{AlphaBeta, Dq, Frame};
+pub(crate) use layer::Electromagnetics;
 pub use linear::{LinearAlphaBeta, LinearDq};
 pub(crate) use machine::torque;
 pub use machine::{Linearised, Machine, Magnet};

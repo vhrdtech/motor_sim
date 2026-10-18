@@ -46,7 +46,60 @@ pub enum Load {
     Locked,
 }
 
+/// How the rotor moves over one base substep, as the electromagnetics sees it (plain data).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct RotorMotion {
+    /// Electrical angle at the start, rad in [0, 2π).
+    pub theta_e: f32,
+    /// Electrical speed held over the substep, rad/s.
+    pub omega_e: f32,
+}
+
+/// State of the mechanics layer.
+#[derive(Clone, Copy)]
+pub(crate) struct Mechanics {
+    pub state: MechState,
+    /// Rotor speed at the start of the previous substep, rad/s, to predict the mid-step speed.
+    omega_m_prev: f32,
+}
+
+impl Mechanics {
+    pub fn new() -> Self {
+        Mechanics {
+            state: MechState {
+                theta_m: 0.0,
+                omega_m: 0.0,
+                theta_load: 0.0,
+                omega_load: 0.0,
+            },
+            omega_m_prev: 0.0,
+        }
+    }
+
+    /// The rotor motion for the next substep. Freezes ω at the predicted mid-step speed, so the electrical and
+    /// mechanical sides exchange the same energy to second order.
+    pub fn rotor(&mut self, pole_pairs: u32, load: &Load) -> RotorMotion {
+        let s = &self.state;
+        let pp = pole_pairs as f32;
+        let omega_m = match load {
+            Load::Speed { .. } | Load::Locked => s.omega_m,
+            _ => 1.5 * s.omega_m - 0.5 * self.omega_m_prev,
+        };
+        self.omega_m_prev = s.omega_m;
+        RotorMotion {
+            theta_e: crate::wrap_tau(pp as f64 * s.theta_m) as f32,
+            omega_e: pp * omega_m,
+        }
+    }
+
+    /// One substep with the electromagnetic torque `te` (N·m, average over the substep) at time `t_s`.
+    pub fn step(&mut self, m: &MechParams, load: &Load, te: f32, t_s: f64, h: f32) -> MechStep {
+        step(m, load, &mut self.state, te, t_s, h)
+    }
+}
+
 /// Mechanical state, kept in [`Truth`](crate::Truth).
+#[derive(Clone, Copy)]
 pub(crate) struct MechState {
     pub theta_m: f64,
     pub omega_m: f32,
@@ -65,14 +118,7 @@ pub(crate) struct MechStep {
 ///
 /// Viscous terms are implicit, spring and fan torques explicit; the energy terms use the mid-step speed, so
 /// `ΔE_kin = (te − friction − load)·ω_mid·h` holds exactly.
-pub(crate) fn step(
-    m: &MechParams,
-    load: &Load,
-    s: &mut MechState,
-    te: f32,
-    t_s: f64,
-    h: f32,
-) -> MechStep {
+fn step(m: &MechParams, load: &Load, s: &mut MechState, te: f32, t_s: f64, h: f32) -> MechStep {
     let omega0 = s.omega_m;
     let friction_of = |w: f32| m.viscous_nms_per_rad * w + m.coulomb_nm * sign(w);
     match *load {

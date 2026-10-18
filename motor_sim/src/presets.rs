@@ -1,7 +1,9 @@
 //! Ready-made motors. The VESC one uses the vedderb/bldc firmware defaults; the other two are plausible motors of
 //! their class, not a specific datasheet.
 
+use crate::nvh::NvhParams;
 use crate::params::*;
+use crate::thermal::ThermalParams;
 
 /// VESC 6 style sensors: 0.5 mΩ shunt and gain 20 on a 3.3 V 12-bit ADC (±165 A), 39k/2.2k Vin divider.
 fn vesc_sensors() -> SensorParams {
@@ -23,7 +25,7 @@ fn vesc_sensors() -> SensorParams {
 /// λ = 2.45 mWb, 14 poles, 3 cell battery (11.1 V). Inertia and friction are guesses for a ~50 mm outrunner.
 pub fn vesc_hobby_outrunner() -> MotorParams {
     MotorParams {
-        pmsm: PmsmParams {
+        machine: PmsmParams {
             pole_pairs: 7,
             rs_ohm: 0.015,
             ld_h: 7e-6,
@@ -37,6 +39,8 @@ pub fn vesc_hobby_outrunner() -> MotorParams {
         },
         inverter: InverterParams { vdc_v: 11.1 },
         sensors: vesc_sensors(),
+        thermal: ThermalParams::OFF,
+        nvh: NvhParams::OFF,
         max_substep_s: 50e-6,
     }
 }
@@ -44,7 +48,7 @@ pub fn vesc_hobby_outrunner() -> MotorParams {
 /// Small industrial surface-magnet servo, 48 V, ~400 W at 3000 rpm: 8 poles, kt ≈ 0.1 N·m/A.
 pub fn industrial_spm() -> MotorParams {
     MotorParams {
-        pmsm: PmsmParams {
+        machine: PmsmParams {
             pole_pairs: 4,
             rs_ohm: 0.3,
             ld_h: 0.6e-3,
@@ -69,6 +73,8 @@ pub fn industrial_spm() -> MotorParams {
             encoder_offset_rad: 0.0,
             hall_offset_rad: 0.0,
         },
+        thermal: ThermalParams::OFF,
+        nvh: NvhParams::OFF,
         max_substep_s: 50e-6,
     }
 }
@@ -77,7 +83,7 @@ pub fn industrial_spm() -> MotorParams {
 /// matter.
 pub fn ipm() -> MotorParams {
     MotorParams {
-        pmsm: PmsmParams {
+        machine: PmsmParams {
             pole_pairs: 4,
             rs_ohm: 0.05,
             ld_h: 0.2e-3,
@@ -102,6 +108,8 @@ pub fn ipm() -> MotorParams {
             encoder_offset_rad: 0.0,
             hall_offset_rad: 0.0,
         },
+        thermal: ThermalParams::OFF,
+        nvh: NvhParams::OFF,
         max_substep_s: 50e-6,
     }
 }
