@@ -24,7 +24,7 @@ Engine math (dq frame rotating at ω_f = ω, αβ frame ω_f = 0), state x = ψ 
 - Linearise at the substep start: i ≈ i0 + Γ·y + g·ω·t (Γ = ∂I/∂x, g = ∂I/∂θ), ψm ≈ ψm + ψm′·ωt: dy/dt = A·y + Re(W·e^{−jω_f t}) + c + d·t, A = −RΓ − ω_fJ. Exponential Rosenbrock-Euler: exact for linear maps, 2nd order with exact Jacobian.
 - Closed form: e^{Ah} as today's step_exact, sinusoid via (A + jω_f)⁻¹, ramp via A⁻¹. Then i_new = I(x_new, θ_new) from the map.
 - Torque/(1.5·p) = [rotating] (ψ×i) + i·ψm′ − ∂W̃/∂θ|x, W̃ field energy with i = ∂W̃/∂x. Energy balance by construction for consistent maps.
-- `Plant::params_mut`/`Motor::params_mut` keep the currents continuous (flux re-derived from the currents at the next step), like MS-1.
+- `Plant::params_mut` keeps the currents continuous (flux re-derived from the currents at the next step), like MS-1.
 
 Inverter: `Carrier { period_s, align: Center|Edge }`; `Motor::set_carrier(Some(..))` makes duties compare values held for the step, applied through the carrier from the motor's time: the step's average duty is the leg's exact high time over [t, t+h]. `None` (default) is MS-1.
 
@@ -33,6 +33,7 @@ Inverter: `Carrier { period_s, align: Center|Edge }`; `Motor::set_carrier(Some(.
 - [x] step 1 plan (this file)
 - [x] step 2-4 restructure, engine, Plant, grids + MapMachine, carrier, multirate (32db5e2); `core.rs` became `stack.rs` (a module named `core` shadows `::core`)
 - [x] step 5 tests in tests/engine.rs (5f9d49b + docs commit): MS-1 closed form to <1e-6 of peak, LinearDq Ldq≠0 1-50 µs vs RK4 < 4e-6, saturated map second order (7.7e-4 at 50 µs, 2.9e-5 at 10 µs), energy balance with 2D maps 1e-4 / 3D maps 1e-3 incl. a saturating pulse, carrier 10 µs vs per-period steps 2.6e-4 of peak, params_mut keeps currents
+- [x] step 6 (266d78a), Roman's decisions of 18 Oct (via parent): API breaks fine, capabilities kept. `Motor = Plant<PmsmParams>`, `MotorParams = PlantParams<PmsmParams>` (`pmsm` → `machine`), layers as Copy state structs exchanging plain-data values per base tick (RotorMotion, WindingVolts, EmStep, MechStep: the cut lines a transport would carry), `SimClock` + `Plant::snapshot/restore` (bit-identical replay test). Checked with batching-docs cherry-picked in a throwaway worktree: workspace 50/50 tests, clippy clean. Perf 228 vs 209 ns (+9 %).
 - [ ] waiting: MS-8 bench (session ms-bench) to land on main, then `git rebase main`, add the engine rows (L1 Motor, Plant<LinearDq>, Plant<MapMachine Grid2/Grid3>, carrier at 10 µs), check L1 within 20 % of base
 - [ ] waiting: demo fix (batching-docs) to land so `just test` builds motor_demo; then just test + just lint
 - [ ] FEATURES MS-7: set done if the plan branch's entry is on main after rebase, else say "flip MS-7 after the plan lands" in the ready note
@@ -45,8 +46,9 @@ Inverter: `Carrier { period_s, align: Center|Edge }`; `Motor::set_carrier(Some(.
 - Machine Jacobian from the tables' in-cell gradient (no Jacobian tables): with the exact Jacobian of the interpolant the step is exponential Rosenbrock-Euler, second order.
 - Frames are two-axis (star without neutral). Zero sequence / open winding / SRM phases need an n×n step (no 2×2 closed form): left for MS-16/MS-21.
 - No `thermal`/`nvh` cargo features yet: their layers are empty slots (levels `Off`), and cfg'd pub fields would break feature unification; the features come with content (MS-3, MS-28). `maps` is the one feature now.
-- Motor keeps its own `magnetic_energy_j` formula (from Ld, Lq and the truth currents) to stay bit-compatible; Plant's uses the map's field energy.
-- Perf on gpd-omarchy, best of 15 pinned: MS-1 208-215 ns/step, new 224 ns/step (+5-8 %).
+- Interface types stay `pub(crate)` until a transport needs them; they are plain Copy data so exposing them is a visibility change.
+- Determinism (decision 4): no `mul_add`, fixed operation order; snapshot is a plain copy of `Core`.
+- Perf on gpd-omarchy, best of 15 pinned: MS-1 207-210 ns/step, new 228 ns/step (+9 %); without a carrier the power stage hands every substep the volts latched at `command` (recomputing them per substep cost +6 %).
 
 ## Gotchas
 
