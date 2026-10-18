@@ -33,8 +33,9 @@ Status: ✅ done, 🚧 partial, 🐛 buggy, 📋 planned, 💡 idea.
   inverse map and an exponential step around the local incremental inductance (closed form like today, linear maps
   reproduce MS-1); inverter volt-seconds over any interval so the step is independent of the PWM period; multirate
   skeleton; the API may change, every MS-1 capability stays possible and tested.
-- 📋 **MS-8 cost bench**: per-feature cost per step (ns on the host, code size for thumbv7em), a tracked table that
-  every new feature adds a row to and that flags regressions.
+- ✅ **MS-8 cost bench**: `motor_bench` (`just bench`), std only: ns per `Motor::step` per configuration (preset ×
+  load × dt × sensors, thread CPU time) and the thumbv7em code size of `motor_sim` per cargo feature, against a
+  committed `baseline.tsv` that every new configuration adds a row to and that flags a >20% regression.
 - 💡 **MS-9 saturation maps**: ψd, ψq (id, iq) with cross-saturation and incremental inductances from tables (uniform
   grids), saliency that moves with load (for HF-injection sensorless tests).
 - 💡 **MS-10 spatial harmonics**: flux and torque maps over rotor angle (dense 3D or 2D + Fourier terms): back-EMF
