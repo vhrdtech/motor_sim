@@ -26,9 +26,10 @@ the demo, fix the demo here. Observe tests count per second of simulated device 
 simulation falls behind real time on a busy PC); `.config/nextest.toml` keeps the 3 s default test limit with one
 override for them.
 
-`FEATURES.md` is the feature tracker (ids `MS-n` for the real-time plant, `MDL-n` model data, `CAL-n` calibration, `FEM-n`
-offline field tools, `HIL-n` HIL/FPGA/batch, `DEMO-n` the demo and apps, `CLI-n`, `EDU-n` education; never renumbered or
-reused; name them with a short slug when talking to people). Update the matching item in the same change.
+`FEATURES.md` is the feature tracker (ids `MS-n` for the real-time plant, `MDL-n` model data, `CAL-n` calibration,
+`FEM-n` offline field tools, `HIL-n` HIL/FPGA/batch, `CTL-n` control toolkit, `DEMO-n` the demo and apps, `CLI-n`,
+`EDU-n` education; never renumbered or reused; name them with a short slug when talking to people). Update the
+matching item in the same change.
 
 ## Commands
 
