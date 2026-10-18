@@ -24,7 +24,7 @@ Engine math (dq frame rotating at ω_f = ω, αβ frame ω_f = 0), state x = ψ 
 - Linearise at the substep start: i ≈ i0 + Γ·y + g·ω·t (Γ = ∂I/∂x, g = ∂I/∂θ), ψm ≈ ψm + ψm′·ωt: dy/dt = A·y + Re(W·e^{−jω_f t}) + c + d·t, A = −RΓ − ω_fJ. Exponential Rosenbrock-Euler: exact for linear maps, 2nd order with exact Jacobian.
 - Closed form: e^{Ah} as today's step_exact, sinusoid via (A + jω_f)⁻¹, ramp via A⁻¹. Then i_new = I(x_new, θ_new) from the map.
 - Torque/(1.5·p) = [rotating] (ψ×i) + i·ψm′ − ∂W̃/∂θ|x, W̃ field energy with i = ∂W̃/∂x. Energy balance by construction for consistent maps.
-- `machine_mut`/`params_mut` keep the currents continuous (flux re-derived from the currents at the next step), like MS-1.
+- `Plant::params_mut`/`Motor::params_mut` keep the currents continuous (flux re-derived from the currents at the next step), like MS-1.
 
 Inverter: `Carrier { period_s, align: Center|Edge }`; `Motor::set_carrier(Some(..))` makes duties compare values held for the step, applied through the carrier from the motor's time: the step's average duty is the leg's exact high time over [t, t+h]. `None` (default) is MS-1.
 
