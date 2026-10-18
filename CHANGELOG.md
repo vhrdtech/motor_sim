@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 2026-10-18: motor_sim 0.2.0, motor_demo 0.1.2, motor_bench 0.1.1
+
 ### Added
 
 - Layered engine (MS-7): `Plant<M: Machine>` runs the plant as a stack of layers (drive, power stage,
@@ -20,11 +22,12 @@
 
 ### Changed
 
-- Breaking: `Motor` is `Plant<PmsmParams>` and `MotorParams` is `PlantParams<PmsmParams>`; its field `pmsm` is
+- **Breaking:** `Motor` is `Plant<PmsmParams>` and `MotorParams` is `PlantParams<PmsmParams>`; its field `pmsm` is
   now `machine`, and it has `thermal` and `nvh` (presets set them off). `with_machine` gives the same parameters
   with another machine. Every MS-1 capability and preset stays, with the same results: the exponential step
   reproduces MS-1's closed form to 1e-6 of the peak current and is formed as an increment, so f32 rounding no
   longer piles up over many short steps. `Motor::magnetic_energy_j` comes from the machine's field energy.
+- `motor_demo` follows the `motor_sim` 0.2 API (`params.machine` instead of `params.pmsm`); no behaviour change.
 
 ## 2026-10-18: motor_cad 0.1.0, motor_twin 0.1.0
 
