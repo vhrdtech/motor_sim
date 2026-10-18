@@ -23,4 +23,26 @@ for _ in 0..25_000 {
 }
 ```
 
+## Workspace
+
+| Crate | What |
+|---|---|
+| `motor_sim` | the `no_std` plant above, builds for `thumbv7em-none-eabihf` |
+| `motor_demo_api` | a [wire_weaver](https://github.com/vhrdtech/wire_weaver) API: 52 `+observe` properties of a motor controller in three rate tiers |
+| `motor_demo` | a VESC-like FOC controller driving `motor_sim`, served as a wire_weaver device (in process or on UDP), and the `motor_demo` CLI that observes it |
+
+`motor_demo` builds against a wire_weaver checkout next to this one (`../wire_weaver`); `just deps-pull` brings it up to its main.
+
+```sh
+git clone https://github.com/vhrdtech/wire_weaver
+git clone https://github.com/vhrdtech/motor_sim
+cd motor_sim
+cargo run --release -p motor_demo -- observe --compare        # a device in this process, 3 tiers, 1 s reports
+cargo run --release -p motor_demo -- device --listen 127.0.0.1:9000
+cargo run --release -p motor_demo -- observe --udp 127.0.0.1:9000 --prop i_q=every:1ms,speed_electrical,fault
+cargo run --release -p motor_demo -- list                     # every property with the unit it is shown in
+```
+
+What the demo shows and its measured numbers: [Motor controller demo](https://ww.vhrd.tech/examples/motor_demo/) in the wire_weaver docs.
+
 Status and plans: [FEATURES.md](FEATURES.md). Development: [AGENTS.md](AGENTS.md).

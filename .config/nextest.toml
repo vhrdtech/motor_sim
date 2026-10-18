@@ -1,0 +1,13 @@
+[profile.default]
+slow-timeout = { period = "3s", terminate-after = 1 }
+
+# CI runners are slower, give tests more time before killing them
+[profile.ci]
+slow-timeout = { period = "15s", terminate-after = 2 }
+fail-fast = false
+
+# observe a simulated device for a fixed span of its own time: on a loaded PC the simulation falls behind real time,
+# so a 1 s run takes longer
+[[profile.default.overrides]]
+filter = 'package(motor_demo) & binary(observe)'
+slow-timeout = { period = "15s", terminate-after = 1 }

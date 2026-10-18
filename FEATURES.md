@@ -22,3 +22,14 @@ Status: ✅ done, 🚧 partial, 🐛 buggy, 📋 planned, 💡 idea.
   faults (open phase, shorted switch).
 - 💡 **MS-6 diode conduction**: with the inverter off, the back-EMF drives current through the freewheeling diodes
   once it exceeds the DC link (today the currents drop to zero).
+
+## Demo (`DEMO`)
+
+- ✅ **DEMO-1 Motor controller demo**: `motor_demo` (+ `motor_demo_api`), a VESC-like FOC controller on `motor_sim`
+  with 52 `+observe` properties in three trait levels by rate tier (25 kHz, 1 kHz, 50 Hz), their values `ww_si`
+  quantities, on simulated time faster or slower than real time, in-process and over UDP; the `motor_demo` CLI
+  observes chosen sets at chosen rates and shows achieved rates, bytes against the budget, missed sends and the cost
+  as one `StreamData` per value. Moved from wire_weaver (its EX-11) with history (P2401, 18 Oct 2026); docs page:
+  wire_weaver `docs/examples/motor_demo.md`.
+- 💡 **DEMO-2 Simulator GUI**: a desktop app with a 3D view of the motor and load, live plots and controls, on top
+  of `motor_sim` and the demo's wire_weaver device; its heavy dependencies are why the demo lives in this repo.

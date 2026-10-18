@@ -1,4 +1,4 @@
-//! API of the motor controller demo (EX-11): a VESC-like FOC controller driving a simulated motor, with its ~50
+//! API of the motor controller demo (DEMO-1): a VESC-like FOC controller driving a simulated motor, with its ~50
 //! variables as `+observe` properties.
 //!
 //! The variables are split into trait levels by the rate they change at, like the three tiers of the VESC firmware

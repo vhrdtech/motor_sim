@@ -8,8 +8,18 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: motor_sim
     steps:
+      # motor_demo builds against a sibling wire_weaver checkout (../wire_weaver)
       - uses: actions/checkout@v4
+        with:
+          path: motor_sim
+      - uses: actions/checkout@v4
+        with:
+          repository: vhrdtech/wire_weaver
+          path: wire_weaver
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -18,4 +28,4 @@ jobs:
         with:
           tool: just,cargo-nextest
       - run: just lint
-      - run: just test
+      - run: just test --profile ci

@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Changed
+
+- The repo is a Cargo workspace: the plant moved to `motor_sim/`, its package and API are unchanged.
+
+### Added
+
+- `motor_demo` and `motor_demo_api` (DEMO-1), moved here with their history from wire_weaver's `examples/` (EX-11
+  there): a VESC-like FOC controller on `motor_sim` observed over wire_weaver, and the `motor_demo` CLI. They build
+  against a sibling `../wire_weaver` checkout; `just deps-pull` updates it and `just deploy` calls it.
+
 ## [0.1.0] - 2026-10-15
 
 ### Added

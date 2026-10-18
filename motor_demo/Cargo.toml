@@ -6,7 +6,7 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "A VESC-like FOC controller driving a simulated motor, its ~50 variables observed over wire_weaver (EX-11)"
+description = "A VESC-like FOC controller driving a simulated motor, its ~50 variables observed over wire_weaver (DEMO-1)"
 
 [[bin]]
 name = "motor_demo"
