@@ -6,6 +6,12 @@
 
 ### Changed
 
+- `motor_demo_api` 0.3.0: motor_demo_api/CHANGELOG.md, section Unreleased
+
+## [0.1.1] - 2026-10-18
+
+### Changed
+
 - The repo is a Cargo workspace: the plant moved to `motor_sim/`, its package and API are unchanged.
 
 ### Added
