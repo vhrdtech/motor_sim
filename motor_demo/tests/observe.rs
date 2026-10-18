@@ -241,7 +241,10 @@ async fn over_udp() {
 }
 
 /// `Samples` mode (API-39) on a `+batched` property: every PWM-period sample reaches the host, in batches of
-/// `OBSERVE_BATCH` (32) instead of one update per sample.
+/// `OBSERVE_BATCH` (32) instead of one update per sample, each sample once and in order, and anything the device
+/// drops is counted in `missed` - checked against the device's own simulated time, not a wall-clock rate (a
+/// loaded PC runs the simulation slower than real time, see `device`; AGENTS.md: tests must not assert
+/// wall-clock rates).
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn samples_mode_gets_every_sample() {
     let (_dev, client) = connect_in_process("motor_demo/samples", Options::default()).await;
@@ -255,21 +258,51 @@ async fn samples_mode_gets_every_sample() {
     )
     .await
     .unwrap();
-    // `Samples` updates carry no head `t` (API-39: each item has its own, see `docs/api/batching.md`), so `run`'s
-    // sim-time span (which reads the head `t`) can't measure this level; sleep a real window instead
-    // (`Options::default()` runs at `time_scale` 1, real time tracks simulated time).
     tokio::time::sleep(100 * MS).await;
     session.take();
-    let window = Duration::from_millis(500);
-    tokio::time::sleep(window).await;
+    let i_q_index = find("i_q").unwrap().index;
+    // `Samples` updates carry no head `t` (API-39: each item has its own, see `docs/api/batching.md`), so wait on
+    // `i_q`'s own span (from its samples' own times) instead of `run()`'s (which reads the head `t` and so can't
+    // measure a purely-`Samples` level): accumulate real PWM periods of device time, not a wall-clock duration.
+    const SIM_SPAN_S: f64 = 0.5;
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
+    loop {
+        tokio::time::sleep(10 * MS).await;
+        let spanned = session
+            .stats
+            .lock()
+            .unwrap()
+            .levels
+            .get(&Level::Foc)
+            .and_then(|l| l.props.get(&i_q_index))
+            .and_then(|p| Some((p.last_t? - p.first_t?) as f64 / 1e6))
+            .unwrap_or(0.0);
+        if spanned >= SIM_SPAN_S {
+            break;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "{spanned} s of {SIM_SPAN_S} s device time"
+        );
+    }
     let stats = session.take();
     let foc = &stats.levels[&Level::Foc];
-    let i_q = foc.props[&find("i_q").unwrap().index].clone();
-    let expected = window.as_secs_f64() * 25_000.0;
-    assert!(
-        (i_q.count as f64 - expected).abs() < 0.15 * expected,
-        "{} samples of {i_q:?}, expected ~{expected:.0}",
-        i_q.count
+    let i_q = foc.props[&i_q_index].clone();
+    assert_eq!(i_q.out_of_order, 0, "a sample out of order: {i_q:?}");
+    let (first, last) = (
+        i_q.first_t.expect("a sample arrived"),
+        i_q.last_t.expect("a sample arrived"),
+    );
+    // the FOC tier runs once every 40 µs PWM period: every sample in [first, last] was either received or counted
+    // as missed, whichever PC load delayed it
+    let expected = (last - first) / 40 + 1;
+    assert_eq!(
+        i_q.count + foc.missed,
+        expected,
+        "{} received + {} missed, expected {expected} samples over {} µs of device time",
+        i_q.count,
+        foc.missed,
+        last - first
     );
     // batched: far fewer updates than samples
     assert!(
@@ -278,5 +311,4 @@ async fn samples_mode_gets_every_sample() {
         foc.updates,
         i_q.count
     );
-    assert_eq!(foc.missed, 0);
 }

@@ -18,6 +18,11 @@
 - `motor_demo` builds again against wire_weaver's API-39 batched observe: `device::LIMITS` carries
   `samples_max_age_us` / `samples_min_every_us`, `args::mode` / `mode_str` parse and print `ObserveMode::Samples`
   as `samples:20ms` (every sample) or `samples:1ms/20ms` (decimated).
+- `samples_mode_gets_every_sample` no longer assumes device (simulated) time tracks wall-clock time over a fixed
+  sleep, which went flaky under a loaded PC (fewer simulated PWM periods ran in the same real time); it now waits
+  on `i_q`'s own samples to span a fixed amount of *device* time and checks `received + missed` against that span
+  exactly (every sample received once, in order). `stats::Present` carries a `+batched` sample's own device time,
+  `stats::PropStats` gets `first_t`/`last_t`/`out_of_order` from it.
 
 ## [0.1.1] - 2026-10-18
 

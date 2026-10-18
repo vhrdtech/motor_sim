@@ -85,12 +85,17 @@ pub struct Present {
     pub value: String,
     /// Bytes of the value alone.
     pub len: usize,
+    /// Device time of this one sample, for a `+batched` property's own `Series` item (API-39: every sample has
+    /// its own `t`, see `docs/api/batching.md`); `None` for a plain property or a `Batched::One` value, which
+    /// have no time of their own apart from the update's head `t`.
+    pub t: Option<u64>,
 }
 
 fn one_present<T: SerializeShrinkWrap + Human>(
     index: u32,
     unit: &str,
     v: &T,
+    t: Option<u64>,
     out: &mut Vec<Present>,
 ) {
     let mut buf = [0u8; 32];
@@ -99,6 +104,7 @@ fn one_present<T: SerializeShrinkWrap + Human>(
         index,
         value: v.human(unit),
         len,
+        t,
     });
 }
 
@@ -109,7 +115,7 @@ fn present<T: SerializeShrinkWrap + Human>(
     out: &mut Vec<Present>,
 ) {
     if let Some(v) = value {
-        one_present(index, unit, v, out);
+        one_present(index, unit, v, None, out);
     }
 }
 
@@ -124,10 +130,10 @@ fn present_batched<T: SerializeShrinkWrap + Human>(
 ) {
     match value {
         None => {}
-        Some(BatchedOwned::One(v)) => one_present(index, unit, v, out),
+        Some(BatchedOwned::One(v)) => one_present(index, unit, v, None, out),
         Some(BatchedOwned::Series(series)) => {
             for item in series.iter() {
-                one_present(index, unit, &item.value, out);
+                one_present(index, unit, &item.value, t_us(Some(&item.t)), out);
             }
         }
     }
@@ -259,6 +265,13 @@ pub struct PropStats {
     pub last: String,
     /// Bytes as one `StreamData` per value.
     pub stream_data_bytes: u64,
+    /// Device time of this property's first and last received sample, from samples that carry their own time
+    /// (a `+batched` property's `Series` items, API-39); `None` for a property whose values don't.
+    pub first_t: Option<u64>,
+    pub last_t: Option<u64>,
+    /// Samples received whose own time didn't strictly increase from the previous one of this property: every
+    /// sample should arrive once, in order (a device/client bug, not something `missed` explains).
+    pub out_of_order: u64,
 }
 
 /// Counts of one level.
@@ -335,6 +348,13 @@ impl Stats {
             s.count += 1;
             s.last.clone_from(&p.value);
             s.stream_data_bytes += stream_data_len(level, p.index, p.len) as u64;
+            if let Some(t) = p.t {
+                if s.last_t.is_some_and(|last| t <= last) {
+                    s.out_of_order += 1;
+                }
+                s.first_t.get_or_insert(t);
+                s.last_t = Some(t);
+            }
         }
     }
 
