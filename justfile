@@ -1,8 +1,14 @@
 default:
     @just --list
 
+# The tests. `just test`: all of them (test-all), the run of the `tpm land` gate. `just test --changed`: only the
+# workspace crates changed against main and the crates that depend on them (tpm test changed), what a session runs
+# before tpm work ready.
+test *flags:
+    if [ "{{flags}}" = "--changed" ]; then tpm test changed -- cargo nextest run --workspace; else {{just_executable()}} test-all {{flags}}; fi
+
 # the workspace's default members: everything but motor_twin (Bevy), which `just lint-twin` covers
-test *args:
+test-all *args:
     cargo nextest run {{args}}
     cargo test --doc
 
