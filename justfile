@@ -23,15 +23,28 @@ lint-twin:
 twin model *args:
     cargo run --release -p motor_twin -- {{model}} {{args}}
 
-# The motor demo CLI (`motor_demo`) into ~/.cargo/bin
-install: test
-    cargo install --locked --path motor_demo
-    cargo install --locked --path motor_cad
+# With tpm on PATH: tpm install (kept-releases stack, one copy on PATH); otherwise: cargo install
+# Build the motor_demo and motor_cad command line tools (deploy profile) and install them on this PC
+install:
+    cargo build --profile deploy --locked -p motor_demo -p motor_cad
+    if command -v tpm >/dev/null; then tpm install target/deploy/motor_demo target/deploy/motor_cad; else cargo install --locked --path motor_demo; cargo install --locked --path motor_cad; fi
 
 # motor_demo builds against the sibling wire_weaver checkout: bring it up to its main
 deps-pull:
     git -C ../wire_weaver pull --ff-only
 
-deploy: deps-pull
+# Refuses on local changes (names them, never discards them), before anything is pulled; runs the tests before installing.
+# Bring this PC up to main: pull --ff-only, the sibling wire_weaver, test, install, check both --versions against main
+deploy:
+    #!/usr/bin/env bash
+    set -eu
+    dirty=$(git status --porcelain)
+    if [ -n "$dirty" ]; then echo "local changes, not deploying:"; echo "$dirty"; exit 1; fi
     git pull --ff-only
+    just deps-pull
+    just test
     just install
+    for bin in motor_demo motor_cad; do \
+        $bin --version | grep -q "($(git rev-parse --short HEAD)" || { echo "$bin --version does not show $(git rev-parse --short HEAD):"; $bin --version; exit 1; }; \
+        $bin --version; \
+    done

@@ -4,6 +4,7 @@
 
 ### Changed
 
+- `just install` builds `motor_demo` and `motor_cad` with a `deploy` profile (release plus incremental) and puts both on PATH once through `tpm install` when tpm is there (else `cargo install --locked`) instead of `cargo install` (`motor_cad` was not installed by the documented flow before); the tests run in `just deploy` instead, which also refuses on local changes and checks both `--version`s against main's commit.
 - `motor_demo`: the `foc` level samples through wire_weaver's observe cells (API-50, `observe_cells = "root_foc"`):
   each step writes the 21 values into a ring of atomics and commits the row, `poll_properties` reads it; `control`
   stays on its sampler, so the demo runs both paths. Same wire and rates: `observe --foc samples:20ms` sends

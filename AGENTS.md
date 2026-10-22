@@ -41,9 +41,9 @@ matching item in the same change.
 just test       # cargo nextest run --workspace + doctests
 just lint       # fmt --check, clippy -D warnings, no_std build of motor_sim for thumbv7em-none-eabihf
 just bench      # motor_bench: ns per Motor::step and thumbv7em code size, against baseline.tsv (MS-8)
-just install    # tests, then installs the motor_demo CLI
+just install    # deploy-profile build, motor_demo and motor_cad put on PATH (with tpm the release stack, else cargo install)
 just deps-pull  # bring ../wire_weaver up to its main
-just deploy     # deps-pull, bring this checkout up to main, install
+just deploy     # refuse on local changes, pull, deps-pull, test, install, check --version
 cargo run --release -p motor_demo -- observe --compare
 ```
 

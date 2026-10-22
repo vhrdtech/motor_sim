@@ -4278,6 +4278,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "lz4_flex"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ecbdfe44b1bd960b68170b417450a628c43f7cf56bb3c5317e61cb230ee7f226"
+
+[[package]]
 name = "mach2"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5449,7 +5455,7 @@ dependencies = [
 [[package]]
 name = "picoboot_host"
 version = "0.1.0"
-source = "git+https://github.com/vhrdtech/picoboot_host?branch=main#0d5d04dcbcc3b5eb9883af1b37b637c1805dd242"
+source = "git+https://github.com/vhrdtech/picoboot_host?tag=v0.1.0#795498dd2b17d8ff2711b8db78cccad56607bd2d"
 dependencies = [
  "thiserror 2.0.21",
 ]
@@ -6322,6 +6328,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "stm32_dfu_host"
+version = "0.1.0"
+dependencies = [
+ "thiserror 2.0.21",
+ "tokio",
+]
+
+[[package]]
 name = "strict-num"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6549,9 +6563,9 @@ checksum = "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee"
 
 [[package]]
 name = "tokio"
-version = "1.53.3"
+version = "1.54.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce3335fa71841cda333a58d7615b03901380ecf09d59b3296d21f8bbac0dde4e"
+checksum = "b52fd3255258d26fac7264ab5a76b53c13367136dc011d3d6ad4f8ed070396a3"
 dependencies = [
  "libc",
  "mio",
@@ -7764,25 +7778,36 @@ dependencies = [
  "either",
  "futures-lite",
  "hex",
+ "libc",
  "nusb",
  "picoboot_host",
  "ron",
  "semver",
+ "sha2",
+ "stm32_dfu_host",
  "strum",
  "strum_macros",
  "thiserror 2.0.21",
  "tokio",
  "tracing",
+ "windows-sys 0.61.2",
  "wire_weaver",
  "wire_weaver_snapshots",
  "ww_client_server",
+ "ww_date_time",
  "ww_device",
  "ww_framer",
+ "ww_global",
  "ww_link",
+ "ww_local_socket",
+ "ww_lz4",
  "ww_numeric",
  "ww_self",
  "ww_si",
  "ww_stream",
+ "ww_tap",
+ "ww_tape",
+ "ww_timebase",
  "ww_version",
 ]
 
@@ -7804,6 +7829,7 @@ dependencies = [
  "shrink_wrap",
  "syn 3.0.9",
  "wire_weaver_snapshots",
+ "ww_global",
  "ww_numeric",
  "ww_self",
  "ww_version",
@@ -7821,6 +7847,7 @@ dependencies = [
  "subprocess",
  "syn 3.0.9",
  "wire_weaver_core",
+ "ww_global",
 ]
 
 [[package]]
@@ -7863,12 +7890,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ad82d2a33cdc9674dc7465672f271e096168fcdbe0f799d9e6db8c5892679dc"
 
 [[package]]
+name = "ww_block"
+version = "0.1.0"
+dependencies = [
+ "crc",
+ "wire_weaver",
+ "ww_error",
+]
+
+[[package]]
 name = "ww_client_server"
 version = "0.2.0"
 dependencies = [
  "wire_weaver",
  "ww_global",
  "ww_si",
+]
+
+[[package]]
+name = "ww_date_time"
+version = "0.1.0"
+dependencies = [
+ "shrink_wrap",
 ]
 
 [[package]]
@@ -7881,6 +7924,7 @@ dependencies = [
  "ww_client_server",
  "ww_framer",
  "ww_link",
+ "ww_tap",
 ]
 
 [[package]]
@@ -7914,9 +7958,24 @@ version = "0.5.0"
 dependencies = [
  "shrink_wrap",
  "wire_weaver",
+ "ww_block",
  "ww_framer",
  "ww_global",
  "ww_version",
+]
+
+[[package]]
+name = "ww_local_socket"
+version = "0.5.0"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "ww_lz4"
+version = "0.1.0"
+dependencies = [
+ "lz4_flex",
 ]
 
 [[package]]
@@ -7932,9 +7991,11 @@ name = "ww_self"
 version = "0.3.0"
 dependencies = [
  "anyhow",
+ "quote",
  "serde",
  "sha2",
  "shrink_wrap",
+ "syn 3.0.9",
  "ww_numeric",
  "ww_version",
 ]
@@ -7951,9 +8012,37 @@ dependencies = [
 name = "ww_stream"
 version = "0.5.0"
 dependencies = [
+ "atomic-waker",
  "portable-atomic",
  "wire_weaver",
  "ww_client_server",
+ "ww_si",
+]
+
+[[package]]
+name = "ww_tap"
+version = "0.1.0"
+dependencies = [
+ "tracing",
+ "wire_weaver",
+ "ww_tape",
+]
+
+[[package]]
+name = "ww_tape"
+version = "0.1.0"
+dependencies = [
+ "crc",
+ "shrink_wrap",
+ "ww_version",
+]
+
+[[package]]
+name = "ww_timebase"
+version = "0.1.0"
+dependencies = [
+ "wire_weaver",
+ "ww_date_time",
  "ww_si",
 ]
 
