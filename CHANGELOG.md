@@ -2,8 +2,6 @@
 
 ## [Unreleased]
 
-## 2026-10-22: motor_demo 0.1.3
-
 ### Changed
 
 - `just install` builds `motor_demo` and `motor_cad` with a `deploy` profile (release plus incremental) and puts both on PATH once through `tpm install` when tpm is there (else `cargo install --locked`) instead of `cargo install` (`motor_cad` was not installed by the documented flow before); the tests run in `just deploy` instead, which also refuses on local changes and checks both `--version`s against main's commit.
