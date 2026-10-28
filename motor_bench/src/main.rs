@@ -28,6 +28,7 @@ use motor_sim::{
     Axis, Carrier, Drive, Grid2, Grid3, LinearAlphaBeta, LinearDq, Load, Machine, MapMachine,
     Motor, MotorParams, Plant, PmsmParams, presets,
 };
+use object::{Object, ObjectSection};
 
 /// A measurement over this factor of its baseline is a regression (1.20 = 20%).
 const REGRESSION_FACTOR: f64 = 1.20;
@@ -316,21 +317,45 @@ fn code_size_bytes(workspace_root: &Path, case: &SizeCase) -> anyhow::Result<f64
     ensure!(status.success(), "cargo {} failed", args.join(" "));
 
     let rlib = workspace_root.join("target/thumbv7em-none-eabihf/release/libmotor_sim.rlib");
-    let out = Command::new("size")
-        .arg("-t")
-        .arg(&rlib)
-        .output()
-        .context("spawning `size` (binutils); install it to run the code size bench")?;
-    ensure!(out.status.success(), "size {} failed", rlib.display());
-    let text = String::from_utf8_lossy(&out.stdout);
-    let totals = text.lines().last().context("`size` produced no output")?;
-    let bytes: f64 = totals
-        .split_whitespace()
-        .next()
-        .context("parsing `size` output")?
-        .parse()
-        .context("parsing `size` output")?;
-    Ok(bytes)
+    text_bytes_of_rlib(&rlib)
+}
+
+/// The `.text` bucket GNU `size -t`'s berkeley format would print for `rlib` (an `ar` archive of ELF object
+/// files, one per codegen unit, plus a non-object `.rmeta` member `size` could never read either): every
+/// allocated section that is executable or read-only, summed across every member that parses as an object file.
+fn text_bytes_of_rlib(rlib: &Path) -> anyhow::Result<f64> {
+    let data = fs::read(rlib).with_context(|| format!("reading {}", rlib.display()))?;
+    let archive = object::read::archive::ArchiveFile::parse(&*data)
+        .with_context(|| format!("{}: not an ar archive", rlib.display()))?;
+    let mut bytes = 0u64;
+    let mut members = 0u32;
+    for member in archive.members() {
+        let member =
+            member.with_context(|| format!("{}: reading archive member", rlib.display()))?;
+        let Ok(member_data) = member.data(&*data) else {
+            continue;
+        };
+        let Ok(obj) = object::File::parse(member_data) else {
+            continue; // the `.rmeta` metadata member: not an object file
+        };
+        members += 1;
+        for section in obj.sections() {
+            let object::SectionFlags::Elf { sh_flags, .. } = section.flags() else {
+                continue;
+            };
+            let alloc = sh_flags.0 & object::elf::SHF_ALLOC.0 != 0;
+            if !alloc {
+                continue;
+            }
+            let exec = sh_flags.0 & object::elf::SHF_EXECINSTR.0 != 0;
+            let write = sh_flags.0 & object::elf::SHF_WRITE.0 != 0;
+            if exec || !write {
+                bytes += section.size();
+            }
+        }
+    }
+    ensure!(members > 0, "{}: no object members found", rlib.display());
+    Ok(bytes as f64)
 }
 
 fn load_baseline() -> BTreeMap<String, f64> {

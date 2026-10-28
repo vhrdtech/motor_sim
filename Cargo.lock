@@ -4547,6 +4547,7 @@ dependencies = [
  "console",
  "libc",
  "motor_sim",
+ "object",
 ]
 
 [[package]]
@@ -5236,6 +5237,15 @@ dependencies = [
  "objc2 0.5.3",
  "objc2-core-location",
  "objc2-foundation 0.2.2",
+]
+
+[[package]]
+name = "object"
+version = "0.40.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd229a0361b9d0d4396176e02d65897f487eebeab7caa6d443855ee152ca0b9c"
+dependencies = [
+ "memchr",
 ]
 
 [[package]]
@@ -7792,6 +7802,7 @@ dependencies = [
  "tracing",
  "windows-sys 0.61.2",
  "wire_weaver",
+ "wire_weaver_evolution",
  "wire_weaver_snapshots",
  "ww_client_server",
  "ww_date_time",
@@ -7826,8 +7837,10 @@ dependencies = [
  "regex",
  "ron",
  "semver",
+ "serde",
  "shrink_wrap",
  "syn 3.0.9",
+ "toml 1.1.8+spec-1.1.0",
  "wire_weaver_snapshots",
  "ww_global",
  "ww_numeric",
@@ -7848,6 +7861,19 @@ dependencies = [
  "syn 3.0.9",
  "wire_weaver_core",
  "ww_global",
+]
+
+[[package]]
+name = "wire_weaver_evolution"
+version = "0.5.0"
+dependencies = [
+ "ron",
+ "serde",
+ "shrink_wrap",
+ "wire_weaver_snapshots",
+ "ww_numeric",
+ "ww_self",
+ "ww_version",
 ]
 
 [[package]]

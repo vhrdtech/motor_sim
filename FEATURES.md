@@ -41,7 +41,10 @@ Status: ✅ done, 🚧 partial, 🐛 buggy, 📋 planned, 💡 idea.
 - ✅ **MS-8 cost bench**: `motor_bench` (`just bench`), std only: ns per `Motor::step` per configuration (preset ×
   load × dt × sensors, thread CPU time), MS-7 engine rows (full L, stationary frame, carrier, 2D and 3D maps) and the
   thumbv7em code size of `motor_sim` per cargo feature, against a
-  committed `baseline.tsv` that every new configuration adds a row to and that flags a >20% regression.
+  committed `baseline.tsv` that every new configuration adds a row to and that flags a >20% regression. The code
+  size is read straight from the `thumbv7em-none-eabihf` rlib with the `object` crate (every allocated,
+  executable-or-read-only ELF section summed across the archive's object members) instead of shelling out to
+  binutils `size -t`; same byte count, no external tool needed (P2620#27oct-1118i).
 - 💡 **MS-9 saturation maps**: ψd, ψq (id, iq) with cross-saturation and incremental inductances from tables (uniform
   grids), saliency that moves with load (for HF-injection sensorless tests).
 - 💡 **MS-10 spatial harmonics**: flux and torque maps over rotor angle (dense 3D or 2D + Fourier terms): back-EMF

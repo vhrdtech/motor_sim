@@ -6,6 +6,10 @@
 
 - `just test --changed` runs only the workspace crates changed against main and their dependents (`tpm test changed`, nextest's `rdeps()`); plain `just test` runs everything, as `just test-all` does (tpm ops#22oct-2049).
 
+### Changed
+
+- `motor_bench`'s thumbv7em code size check (MS-8) reads the rlib's ELF sections with the `object` crate instead of spawning binutils `size -t`; verified byte-identical against the committed `baseline.tsv` (P2620#27oct-1118i).
+
 ## 0.1.3 - 22 Oct 2026
 
 ### Changed
