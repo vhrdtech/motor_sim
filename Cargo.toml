@@ -5,6 +5,7 @@ members = ["motor_bench", "motor_cad", "motor_demo", "motor_demo_api", "motor_si
 default-members = ["motor_bench", "motor_cad", "motor_demo", "motor_demo_api", "motor_sim"]
 
 [workspace.package]
+version = "0.2.0"
 authors = ["Roman Isaikin <romix.lab@gmail.com>"]
 edition = "2024"
 license = "MIT"
