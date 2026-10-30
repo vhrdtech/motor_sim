@@ -34,6 +34,13 @@ ww_device = { path = "../wire_weaver/ww_device" }
 ww_si = { path = "../wire_weaver/ww_stdlib/ww_si", default-features = false }
 ww_stream = { path = "../wire_weaver/ww_stream", default-features = false }
 
+# ww_si takes exact_units by git (wire_weaver STD-61), and exact_units takes shrink_wrap from wire_weaver's repository
+# by git; wire_weaver's own [patch] for that only applies when its manifest is the root. The same patch here, so the
+# build has one shrink_wrap, the sibling checkout's (as tpm_mesh_dash 0.67.36 fixed the same thing).
+[patch."https://github.com/vhrdtech/wire_weaver"]
+shrink_wrap = { path = "../wire_weaver/shrink_wrap/shrink_wrap" }
+shrink_wrap_derive = { path = "../wire_weaver/shrink_wrap/shrink_wrap_derive" }
+
 # just install / just deploy: release plus incremental compilation, so a one-file change recompiles that crate only
 [profile.deploy]
 inherits = "release"
