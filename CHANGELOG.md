@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.2.1 - 30 Oct 2026
+
 ### Added
 
 - `just test --changed` runs only the workspace crates changed against main and their dependents (`tpm test changed`, nextest's `rdeps()`); plain `just test` runs everything, as `just test-all` does (tpm ops#22oct-2049).
