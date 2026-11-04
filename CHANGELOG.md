@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- wire_weaver comes by git (`github.com/vhrdtech/wire_weaver`, pinned by `Cargo.lock`) instead of the sibling checkout `../wire_weaver`; the shrink_wrap `[patch]` is dropped (one git source, one copy) and a commented-out `[patch]` block in `Cargo.toml` switches back to the checkout for local work. The next build needs `cargo update -p wire_weaver` to move the pin, and `just deps-pull` no longer feeds the build.
+
 ## 0.2.1 - 30 Oct 2026
 
 ### Added

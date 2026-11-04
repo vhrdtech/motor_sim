@@ -26,20 +26,27 @@ tracing-subscriber = "0.3"
 motor_demo_api = { version = "0.3.0", path = "./motor_demo_api" }
 motor_sim = { version = "0.2.1", path = "./motor_sim" }
 
-# wire_weaver from a sibling checkout (`just deps-pull` brings it up to its main), until its crates are on crates.io
-wire_weaver = { path = "../wire_weaver/wire_weaver", default-features = false }
-wire_weaver_client = { path = "../wire_weaver/wire_weaver_client" }
-ww_client_server = { path = "../wire_weaver/ww_stdlib/ww_client_server", default-features = false }
-ww_device = { path = "../wire_weaver/ww_device" }
-ww_si = { path = "../wire_weaver/ww_stdlib/ww_si", default-features = false }
-ww_stream = { path = "../wire_weaver/ww_stream", default-features = false }
+# wire_weaver by git, pinned by Cargo.lock (`cargo update -p wire_weaver` moves it), until its crates are on crates.io
+wire_weaver = { git = "https://github.com/vhrdtech/wire_weaver", default-features = false }
+wire_weaver_client = { git = "https://github.com/vhrdtech/wire_weaver" }
+ww_client_server = { git = "https://github.com/vhrdtech/wire_weaver", default-features = false }
+ww_device = { git = "https://github.com/vhrdtech/wire_weaver" }
+ww_si = { git = "https://github.com/vhrdtech/wire_weaver", default-features = false }
+ww_stream = { git = "https://github.com/vhrdtech/wire_weaver", default-features = false }
 
-# ww_si takes exact_units by git (wire_weaver STD-61), and exact_units takes shrink_wrap from wire_weaver's repository
-# by git; wire_weaver's own [patch] for that only applies when its manifest is the root. The same patch here, so the
-# build has one shrink_wrap, the sibling checkout's (as tpm_mesh_dash 0.67.36 fixed the same thing).
-[patch."https://github.com/vhrdtech/wire_weaver"]
-shrink_wrap = { path = "../wire_weaver/shrink_wrap/shrink_wrap" }
-shrink_wrap_derive = { path = "../wire_weaver/shrink_wrap/shrink_wrap_derive" }
+# Local development against the sibling checkout: uncomment this block (paths are relative to this manifest). With
+# wire_weaver a plain git dependency on the same URL, exact_units' git shrink_wrap and wire_weaver's own path
+# shrink_wrap are one git source, so no shrink_wrap patch is needed in the git build; the two shrink_wrap lines at the
+# end keep one shrink_wrap when the other crates come from the checkout.
+# [patch."https://github.com/vhrdtech/wire_weaver"]
+# wire_weaver = { path = "../wire_weaver/wire_weaver" }
+# wire_weaver_client = { path = "../wire_weaver/wire_weaver_client" }
+# ww_client_server = { path = "../wire_weaver/ww_stdlib/ww_client_server" }
+# ww_device = { path = "../wire_weaver/ww_device" }
+# ww_si = { path = "../wire_weaver/ww_stdlib/ww_si" }
+# ww_stream = { path = "../wire_weaver/ww_stream" }
+# shrink_wrap = { path = "../wire_weaver/shrink_wrap/shrink_wrap" }
+# shrink_wrap_derive = { path = "../wire_weaver/shrink_wrap/shrink_wrap_derive" }
 
 # just install / just deploy: release plus incremental compilation, so a one-file change recompiles that crate only
 [profile.deploy]
