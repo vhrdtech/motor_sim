@@ -6,8 +6,8 @@
 //! (a new configuration, or the first run on a new machine) is added rather than compared. Timings are this
 //! thread's own CPU time (`CLOCK_THREAD_CPUTIME_ID`), not wall-clock, so time spent preempted by other load on a
 //! busy dev box doesn't count against a run; a `REPEATS`-fold minimum further absorbs scheduler jitter. Neither
-//! fixes a machine-wide CPU frequency drop under sustained heavy load (seen on gpd-omarchy with several
-//! concurrent builds running): that shifts every row together, cross-run, by however much the clock dropped.
+//! fixes a machine-wide CPU frequency drop under sustained heavy load (seen on one of our dev machines with
+//! several concurrent builds running): that shifts every row together, cross-run, by however much the clock dropped.
 //! Treat a flagged regression with suspicion if the machine was busy during either run, and prefer re-baselining
 //! (`--update`) once it is quiet over trusting the delta. Baselines are machine-specific either way: meaningful
 //! only against another run on the same machine.

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- docs: internal references removed
+
 ## 0.2.3 - 10 Nov 2026
 
 ### Changed
@@ -18,17 +20,17 @@
 
 ### Added
 
-- `just test --changed` runs only the workspace crates changed against main and their dependents (`tpm test changed`, nextest's `rdeps()`); plain `just test` runs everything, as `just test-all` does (tpm ops#22oct-2049).
+- `just test --changed` runs only the workspace crates changed against main and their dependents (nextest's `rdeps()`); plain `just test` runs everything, as `just test-all` does.
 
 ### Changed
 
-- `motor_bench`'s thumbv7em code size check (MS-8) reads the rlib's ELF sections with the `object` crate instead of spawning binutils `size -t`; verified byte-identical against the committed `baseline.tsv` (P2620#27oct-1118i).
+- `motor_bench`'s thumbv7em code size check (MS-8) reads the rlib's ELF sections with the `object` crate instead of spawning binutils `size -t`; verified byte-identical against the committed `baseline.tsv`.
 
 ## 0.1.3 - 22 Oct 2026
 
 ### Changed
 
-- `just install` builds `motor_demo` and `motor_cad` with a `deploy` profile (release plus incremental) and puts both on PATH once through `tpm install` when tpm is there (else `cargo install --locked`) instead of `cargo install` (`motor_cad` was not installed by the documented flow before); the tests run in `just deploy` instead, which also refuses on local changes and checks both `--version`s against main's commit.
+- `just install` builds `motor_demo` and `motor_cad` with a `deploy` profile (release plus incremental) and puts both on PATH once through a release-install tool when it's available (else `cargo install --locked`) instead of `cargo install` (`motor_cad` was not installed by the documented flow before); the tests run in `just deploy` instead, which also refuses on local changes and checks both `--version`s against main's commit.
 - `motor_demo`: the `foc` level samples through wire_weaver's observe cells (API-50, `observe_cells = "root_foc"`):
   each step writes the 21 values into a ring of atomics and commits the row, `poll_properties` reads it; `control`
   stays on its sampler, so the demo runs both paths. Same wire and rates: `observe --foc samples:20ms` sends
@@ -51,7 +53,7 @@
   of the whole state) for pause, step, rewind and replay; a restored run repeats bit for bit.
 - `ThermalParams`/`NvhParams` with their levels (`Off` for now), run at integer rate ratios in a fixed order.
 - `motor_bench`: MS-7 engine rows (full inductance matrix, stationary frame, carrier, 2D and 3D maps) and the code
-  size without `maps`; baseline re-measured on a quiet gpd-omarchy after the engine change (+8-14% per L1 step).
+  size without `maps`; baseline re-measured on a quiet dev machine after the engine change (+8-14% per L1 step).
 
 ### Changed
 
@@ -64,7 +66,7 @@
 
 ## 2026-10-18: motor_cad 0.1.0, motor_twin 0.1.0
 
-New crates; per-crate versions (the workspace has no single one yet, P2630#18oct-1556).
+New crates; per-crate versions (the workspace has no single one yet).
 
 ### Added
 
@@ -89,7 +91,7 @@ New crates; per-crate versions (the workspace has no single one yet, P2630#18oct
   (`samples_mode_gets_every_sample`) exercises it end to end. Measured (`Options::default`, `CodecPolicy::SMALLEST`,
   n = 32): `foc` 3.7 MB/s unbatched (periodic, every sample) down to 1.0 MB/s batched (3.7x), `control` 99 kB/s
   down to 26 kB/s (3.8x) — see wire_weaver's `docs/api/batching.md` for the full numbers and how they compare to
-  the design's prediction (`tpm prj/P2401-wireweaver/design/observe_batching_measure.md`).
+  the design's prediction.
 - `motor_bench` (MS-8): `just bench` measures ns per `Motor::step` per configuration (preset × load × dt ×
   sensors, thread CPU time) and the `thumbv7em-none-eabihf` `.text` size of `motor_sim` per cargo feature,
   against a committed `baseline.tsv` that flags a >20% regression; `-- --update` re-measures and rewrites it.

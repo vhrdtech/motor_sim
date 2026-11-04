@@ -11,8 +11,7 @@ Status: ✅ done, 🚧 partial, 🐛 buggy, 📋 planned, 💡 idea.
   SVPWM saturation), mechanics (inertia, viscous and Coulomb friction), loads (constant, viscous, fan, second
   inertia via spring, time profile, dyno speed, locked), sensors (current and Vdc ADC with offsets, noise and
   quantisation, encoder, halls), seeded faults on sensor and inverter paths, DC link Ah/Wh and loss accumulators,
-  variable visitor with unit and rate tier, presets (VESC default outrunner, industrial SPM, IPM)
-  (P2401#15oct-1827).
+  variable visitor with unit and rate tier, presets (VESC default outrunner, industrial SPM, IPM).
 - 💡 **MS-2 BLDC trapezoidal**: BLDC motors on the MS-7 engine: trapezoidal back-EMF as a harmonic spectrum in the
   flux map, per-phase R/L asymmetry in the phase frame, six-step commutation from halls with the floating phase's
   terminal voltage visible (for zero-crossing sensorless controllers).
@@ -37,14 +36,14 @@ Status: ✅ done, 🚧 partial, 🐛 buggy, 📋 planned, 💡 idea.
   `Grid2`/`Grid3` (feature `maps`). PWM `Carrier` volt-seconds over any interval, so the step is independent of the
   PWM period. Tests: `tests/engine.rs` against MS-1, fine RK4 at 1-50 µs, energy balance with maps, carrier vs
   per-period steps, bit-identical replay. Not yet: a zero-sequence/n-phase frame (MS-16, MS-21) and per-layer cargo
-  features beyond `maps` (they come with the thermal and NVH content) (P2630#18oct-1240).
+  features beyond `maps` (they come with the thermal and NVH content).
 - ✅ **MS-8 cost bench**: `motor_bench` (`just bench`), std only: ns per `Motor::step` per configuration (preset ×
   load × dt × sensors, thread CPU time), MS-7 engine rows (full L, stationary frame, carrier, 2D and 3D maps) and the
   thumbv7em code size of `motor_sim` per cargo feature, against a
   committed `baseline.tsv` that every new configuration adds a row to and that flags a >20% regression. The code
   size is read straight from the `thumbv7em-none-eabihf` rlib with the `object` crate (every allocated,
   executable-or-read-only ELF section summed across the archive's object members) instead of shelling out to
-  binutils `size -t`; same byte count, no external tool needed (P2620#27oct-1118i).
+  binutils `size -t`; same byte count, no external tool needed.
 - 💡 **MS-9 saturation maps**: ψd, ψq (id, iq) with cross-saturation and incremental inductances from tables (uniform
   grids), saliency that moves with load (for HF-injection sensorless tests).
 - 💡 **MS-10 spatial harmonics**: flux and torque maps over rotor angle (dense 3D or 2D + Fourier terms): back-EMF
@@ -75,8 +74,8 @@ Status: ✅ done, 🚧 partial, 🐛 buggy, 📋 planned, 💡 idea.
   direction-dependent efficiency and backlash, belts with slip, clutches.
 - 💡 **MS-25 friction models**: Stribeck, LuGre (presliding), bearing friction by load, speed and temperature, seals,
   air-gap windage.
-- 💡 **MS-26 load library**: propeller CT/CQ tables with inflow (P2508), fan and pump curves, robot joint with
-  gravity and link inertia (P2472), wheel and vehicle, spring, caliper, powder and eddy-current brakes, a second
+- 💡 **MS-26 load library**: propeller CT/CQ tables with inflow, fan and pump curves, robot joint with
+  gravity and link inertia, wheel and vehicle, spring, caliper, powder and eddy-current brakes, a second
   plant as dynamometer (motor-as-dyno).
 - 💡 **MS-27 rotor dynamics**: lateral (Jeffcott) rotor on bearing stiffness, static and dynamic unbalance, static and
   dynamic eccentricity with unbalanced magnetic pull, bearing defect impulses, balancing.
@@ -145,7 +144,7 @@ Status: ✅ done, 🚧 partial, 🐛 buggy, 📋 planned, 💡 idea.
   induction (no-load, locked rotor).
 - 💡 **CAL-12 vibration and sound identification**: tap test for modes, run-up order tracking with accelerometers and
   microphones.
-- 💡 **CAL-13 real rigs**: adapters for P2439 motor-stand and P2508 prop-stand running the same experiment scripts.
+- 💡 **CAL-13 real rigs**: adapters for the motor-stand and prop-stand rigs running the same experiment scripts.
 - 💡 **CAL-14 stray-field mapping**: a robot arm or hand scanning the motor's external field with a 3D magnetic sensor,
   compared with the FEM exterior field (FEM-20) to correct magnet strength, magnetisation and assembly; a simulated
   scan (path, sensor noise, offset, orientation error) on the virtual rig first.
@@ -186,7 +185,7 @@ Status: ✅ done, 🚧 partial, 🐛 buggy, 📋 planned, 💡 idea.
 - 💡 **HIL-9 golden models**: bit-accurate Rust models of every FPGA and GPU path (fixed-point arithmetic, LUT
   interpolation, integrators), the same results checked, so neither is a black box.
 - 💡 **HIL-10 FPGA plant**: electrical layer and gate capture on an FPGA at 50-200 ns steps from the same model blob;
-  SystemVerilog base, higher-level HDL per P2623; Efinix preferred, Xilinx for big designs.
+  SystemVerilog base, higher-level HDL approach still to be decided; Efinix preferred, Xilinx for big designs.
 - 💡 **HIL-11 batch runs**: parameter sweeps and Monte Carlo on all cores (rayon); GPU through the same `no_std` core
   later, checked against the CPU run.
 - 💡 **HIL-12 live rig twin**: a fitted model running beside the real motor on the same inputs, residuals live and in
@@ -219,17 +218,17 @@ Status: ✅ done, 🚧 partial, 🐛 buggy, 📋 planned, 💡 idea.
   (API-41/API-39): `samples:20ms` observes every sample in batches instead of one update each; `foc` writes its
   values into wire_weaver observe cells (API-50, a ring of atomics, as a FOC interrupt would), `control` feeds its
   sampler once per tier, the same wire either way. Moved from wire_weaver (its EX-11) with history
-  (P2401, 18 Oct 2026); docs page: wire_weaver `docs/examples/motor_demo.md`, batching: wire_weaver
+  (18 Oct 2026); docs page: wire_weaver `docs/examples/motor_demo.md`, batching: wire_weaver
   `docs/api/batching.md`.
 - 💡 **DEMO-2 Bevy twin**: `motor_twin`, a 3D digital twin in Bevy on top of `motor_sim`, connected through the HIL-13
   transport (plant in process, in another process, on a HIL plant or a real rig): the motor from FEM-10 geometry,
   rotor in slow motion or strobe, dq phasors, heat colours, the load, egui plots and controls, time controls (MS-36);
-  its heavy dependencies are why the demo lives in this repo. 🚧 First slice (P2630#18oct-1242f): `motor_twin` loads
+  its heavy dependencies are why the demo lives in this repo. 🚧 First slice: `motor_twin` loads
   a motor from CAD (DEMO-13), the rotating group spinning kinematically at a set rpm, role toggles, exploded view,
   cutaway, orbit camera, egui controls, headless PNG screenshots; the state source (HIL-13) is next.
 - 💡 **DEMO-8 field view**: flux density on the cross-section from FEM field tables, live with the operating point.
 - 💡 **DEMO-9 twin sound**: MS-29 microphone signals played as spatial audio.
-- 💡 **DEMO-10 rig scene**: the P2439 stand with sensors, cameras and lights; a real rig's live data beside the twin.
+- 💡 **DEMO-10 rig scene**: the motor-stand with sensors, cameras and lights; a real rig's live data beside the twin.
 - 💡 **DEMO-11 WASM**: core and twin in the browser, nothing to install.
 - 💡 **DEMO-12 replay and faults**: deterministic replay from seed and input log, fault injection from the UI.
 - ✅ **DEMO-13 motor from CAD**: `motor_cad`, a pure-Rust import of STEP assemblies (monstertruck for B-rep and
@@ -239,7 +238,7 @@ Status: ✅ done, 🚧 partial, 🐛 buggy, 📋 planned, 💡 idea.
   and geometry about the motor axis (slot and pole counts, rings of similar parts, bearings from balls, lamination
   stacks); a report, a
   scene as glTF with roles in the extras; parametric test motors (12N14P outrunner, NEMA17 hybrid stepper) written to
-  STEP. The convention and STEP export: `motor_cad/README.md`. Fused single solids are not split (P2630).
+  STEP. The convention and STEP export: `motor_cad/README.md`. Fused single solids are not split.
 
 ## CLI (`CLI`)
 
@@ -256,4 +255,4 @@ Status: ✅ done, 🚧 partial, 🐛 buggy, 📋 planned, 💡 idea.
 - 💡 **EDU-8 reproducible labs**: seeded runs with expected answers and a checker.
 - 💡 **EDU-9 preset docs**: every preset documented with its real parameters and sources.
 - 💡 **EDU-10 student rig**: maybe a cheap student motor stand later; nothing assumes particular student hardware.
-- 💡 **EDU-11 docs**: all material in Typst (built by `tpm doc build`), online docs in Zensical.
+- 💡 **EDU-11 docs**: all material in Typst (built by an internal docs pipeline), online docs in Zensical.

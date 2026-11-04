@@ -1,9 +1,9 @@
 default:
     @just --list
 
-# The tests. `just test`: all of them (test-all), the run of the `tpm land` gate. `just test --changed`: only the
-# workspace crates changed against main and the crates that depend on them (tpm test changed), what a session runs
-# before tpm work ready.
+# The tests. `just test`: all of them (test-all), the gate before landing. `just test --changed`: only the
+# workspace crates changed against main and the crates that depend on them, what to run before a change is
+# ready.
 test *flags:
     if [ "{{flags}}" = "--changed" ]; then tpm test changed -- cargo nextest run --workspace; else {{just_executable()}} test-all {{flags}}; fi
 
@@ -29,7 +29,7 @@ lint-twin:
 twin model *args:
     cargo run --release -p motor_twin -- {{model}} {{args}}
 
-# With tpm on PATH: tpm install (kept-releases stack, one copy on PATH); otherwise: cargo install
+# With a release-install tool on PATH: install into its kept-releases stack (one copy on PATH); otherwise: cargo install
 # Build the motor_demo and motor_cad command line tools (deploy profile) and install them on this PC
 install:
     cargo build --profile deploy --locked -p motor_demo -p motor_cad

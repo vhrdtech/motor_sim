@@ -7,8 +7,8 @@ Guidance for AI code assistants working in this repository.
 `motor_sim` is a pure Rust, `no_std`, `libm`-only simulator of electric motors for testing motor controllers in
 software: the plant (a PMSM in dq first), an average inverter, mechanics and loads, with sensors (ADC quantisation,
 noise, offsets, encoder/hall) and seeded faults kept apart from the true physics. It is deterministic: the same
-parameters and seed give the same run on every target. Design background: tpm `hobby/P2630-motor-sim/design/architecture.md`
-(architecture and roadmap), earlier `prj/P2401-wireweaver/design/multi_observe.md` ("Motor model crate").
+parameters and seed give the same run on every target. Design background: our internal design notes on
+architecture and roadmap, plus an earlier note on the motor model crate's multi-observe design.
 
 The repo is a Cargo workspace:
 
@@ -41,7 +41,7 @@ matching item in the same change.
 just test       # cargo nextest run --workspace + doctests
 just lint       # fmt --check, clippy -D warnings, no_std build of motor_sim for thumbv7em-none-eabihf
 just bench      # motor_bench: ns per Motor::step and thumbv7em code size, against baseline.tsv (MS-8)
-just install    # deploy-profile build, motor_demo and motor_cad put on PATH (with tpm the release stack, else cargo install)
+just install    # deploy-profile build, motor_demo and motor_cad put on PATH (with a release-install tool present, else cargo install)
 just deps-pull  # bring ../wire_weaver up to its main
 just deploy     # refuse on local changes, pull, deps-pull, test, install, check --version
 cargo run --release -p motor_demo -- observe --compare
