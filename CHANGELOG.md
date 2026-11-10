@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.2.3 - 10 Nov 2026
+
 ### Changed
 
 - motor_demo builds on wire_weaver master d126f6f (`cargo update -p wire_weaver`, exact_units moves with it): `MotorDemo` implements `WwClient::try_from_cmd` instead of `from_cmd`, the device's `LinkConfig::new` passes the API's wire version and `api_impl::image_facts()`, and `motor_demo_api` declares its wire version (`[package.metadata.wire_weaver] wire = "w1.0"`, wire_weaver EVO-31). The observe cells still take their row time as a `Second`; nothing in the demo used `Timed` directly (tpm P2401#10nov-1016b).
