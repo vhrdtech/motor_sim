@@ -14,3 +14,7 @@ std = ["wire_weaver/std", "ww_si/std"]
 wire_weaver.workspace = true
 # the quantity groups the API uses, and the number types its device stores them in
 ww_si = { workspace = true, features = ["time", "electrical", "mechanical", "angle", "dimensionless", "i32", "u32", "f32"] }
+
+# the API's wire version (EVO-31)
+[package.metadata.wire_weaver]
+wire = "w1.0"

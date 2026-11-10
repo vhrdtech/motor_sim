@@ -1,6 +1,6 @@
 //! The generated client of the demo's API.
 
-use wire_weaver_client::{ClientConfig, Commander, WwClient};
+use wire_weaver_client::{ClientConfig, Commander, Error, WwClient};
 
 pub struct MotorDemo {
     pub cmd: Commander,
@@ -11,8 +11,8 @@ impl WwClient for MotorDemo {
         ClientConfig::default()
     }
 
-    fn from_cmd(cmd: Commander) -> Self {
-        Self { cmd }
+    fn try_from_cmd(cmd: Commander) -> Result<Self, Error> {
+        Ok(Self { cmd })
     }
 }
 

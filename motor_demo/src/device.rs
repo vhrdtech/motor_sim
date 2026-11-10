@@ -806,7 +806,9 @@ pub fn spawn(medium: Medium, opts: Options) -> anyhow::Result<DeviceThread> {
 fn link_config() -> LinkConfig<'static> {
     LinkConfig::new(
         motor_demo_api::MOTOR_DEMO_FULL_GID,
+        motor_demo_api::MOTOR_DEMO_WIRE_VERSION,
         api_impl::api_hash(),
+        api_impl::image_facts(),
         ww_client_server::COMPACT_VERSION,
     )
 }
