@@ -4608,7 +4608,7 @@ dependencies = [
 
 [[package]]
 name = "motor_sim"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "libm",
 ]

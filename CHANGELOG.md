@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.2.4 - 10 Nov 2026
+
 - docs: internal references removed
 
 ## 0.2.3 - 10 Nov 2026
