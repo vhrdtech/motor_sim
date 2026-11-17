@@ -22,7 +22,7 @@
 //! enough one update at a time.
 #![no_std]
 
-use wire_weaver::prelude::*;
+use ww_api::prelude::*;
 use ww_si::units::{AngularVelocity as RadPerS, Per, Times, Torque as Nm};
 use ww_si::{
     Ampere, AngularVelocity, Coulomb, Degree, Joule, Quantity, Radian, Ratio, Second, Torque, Volt,

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- WireWeaver layering port: `ww_si` comes from vhrdtech/ww_base, `motor_demo_api` depends on `ww_api` instead of `wire_weaver`, the rest stays on wire_weaver master 5a5b4f5. The demo's property handlers return `CommonError` (the `()` error is gone), observe modes and event paths use the typed `ww_si` numbers.
+
 ## 0.2.4 - 10 Nov 2026
 
 - docs: internal references removed

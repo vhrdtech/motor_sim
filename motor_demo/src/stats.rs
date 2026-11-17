@@ -16,8 +16,8 @@ use wire_weaver::shrink_wrap::{
 use wire_weaver_client::observe::Observed;
 use ww_client_server::observe::BatchedOwned;
 use ww_client_server::{Event, EventKind};
-use ww_si::Second;
 use ww_si::ww_numeric::NumericValue;
+use ww_si::{Count, Index, Second};
 
 use crate::units::Human;
 
@@ -237,7 +237,7 @@ pub fn property_update_len(
     missed: u32,
     data: &[u8],
 ) -> usize {
-    let path = [UNib32(level as u32)];
+    let path = [Index::new(UNib32(level as u32))];
     let sample_times: Option<Vec<Second>> =
         sample_times.map(|times| times.iter().map(as_sent).collect());
     let event = Event {
@@ -245,7 +245,7 @@ pub fn property_update_len(
         result: Ok(EventKind::PropertyUpdate {
             path: RefVec::Slice { slice: &path },
             t: t.map(as_sent),
-            missed: (missed > 0).then_some(UNib32(missed)),
+            missed: (missed > 0).then_some(Count::new(UNib32(missed))),
             sample_times: sample_times
                 .as_deref()
                 .map(wire_weaver::shrink_wrap::series::Series::new),
@@ -259,7 +259,7 @@ pub fn property_update_len(
 
 /// Bytes of a `StreamData` event carrying one property's value on its own path, as `stream_data_ser()` sends it.
 pub fn stream_data_len(level: Level, index: u32, value_len: usize) -> usize {
-    let path = [UNib32(level as u32), UNib32(index)];
+    let path = [Index::new(UNib32(level as u32)), Index::new(UNib32(index))];
     let data = vec![0u8; value_len];
     let event = Event {
         seq: UVlq32(0),

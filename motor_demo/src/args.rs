@@ -64,19 +64,17 @@ pub fn mode_str(m: &ObserveMode) -> String {
     };
     match m {
         ObserveMode::Off => "off".into(),
-        ObserveMode::OnChange { min_us } => format!("change:{}", d(min_us.0)),
-        ObserveMode::Periodic { every_us } => format!("every:{}", d(every_us.0)),
-        ObserveMode::OnChangeOrBeat { min_us, max_us } => {
-            format!("beat:{}/{}", d(min_us.0), d(max_us.0))
+        ObserveMode::OnChange { min } => format!("change:{}", d(min.get().0)),
+        ObserveMode::Periodic { every } => format!("every:{}", d(every.get().0)),
+        ObserveMode::OnChangeOrBeat { min, max } => {
+            format!("beat:{}/{}", d(min.get().0), d(max.get().0))
         }
-        ObserveMode::Samples {
-            every_us: UNib32(0),
-            max_age_us,
-        } => format!("samples:{}", d(max_age_us.0)),
-        ObserveMode::Samples {
-            every_us,
-            max_age_us,
-        } => format!("samples:{}/{}", d(every_us.0), d(max_age_us.0)),
+        ObserveMode::Samples { every, max_age } if every.get() == UNib32(0) => {
+            format!("samples:{}", d(max_age.get().0))
+        }
+        ObserveMode::Samples { every, max_age } => {
+            format!("samples:{}/{}", d(every.get().0), d(max_age.get().0))
+        }
         ObserveMode::Unknown(_) => "?".into(),
     }
 }

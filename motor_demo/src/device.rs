@@ -66,6 +66,14 @@ pub const LIMITS: ObserveLimits = ObserveLimits {
 };
 
 /// q current limit for each motor, A.
+/// A setter's refusal of its one argument.
+fn invalid_argument(reason: &'static str) -> CommonError<'static> {
+    CommonError::InvalidArgument {
+        arg: ww_si::Index::new(0),
+        reason: MaxLen::new_unchecked(reason),
+    }
+}
+
 fn motor(preset: Preset) -> (MotorParams, f32) {
     match preset {
         Preset::IndustrialSpm => (presets::industrial_spm(), 10.0),
@@ -265,7 +273,7 @@ macro_rules! tier_common {
 
         impl Device {
             $(
-                async fn $get(&mut self, _cx: &mut Context<'_, impl EventOut>) -> GetResult<$ty, ()> {
+                async fn $get(&mut self, _cx: &mut Context<'_, impl EventOut>) -> GetResult<$ty, CommonError<'_>> {
                     GetResult::Value(self.$values.$name)
                 }
             )*
@@ -450,7 +458,7 @@ impl Device {
     async fn get_telemetry_real_time_factor(
         &mut self,
         _cx: &mut Context<'_, impl EventOut>,
-    ) -> GetResult<Ratio, ()> {
+    ) -> GetResult<Ratio, CommonError<'_>> {
         GetResult::Value(Ratio::from_f32(self.real_time_factor))
     }
 
@@ -458,9 +466,9 @@ impl Device {
         &mut self,
         _cx: &mut Context<'_, impl EventOut>,
         value: ControlMode,
-    ) -> SetResult<()> {
+    ) -> SetResult<CommonError<'_>> {
         if matches!(value, ControlMode::Unknown(_)) {
-            return SetResult::SetError(());
+            return SetResult::SetError(CommonError::Unsupported);
         }
         self.manual();
         self.ctl.set.mode = value;
@@ -472,7 +480,7 @@ impl Device {
     async fn get_control_mode(
         &mut self,
         _cx: &mut Context<'_, impl EventOut>,
-    ) -> GetResult<ControlMode, ()> {
+    ) -> GetResult<ControlMode, CommonError<'_>> {
         GetResult::Value(self.ctl.set.mode)
     }
 
@@ -480,9 +488,9 @@ impl Device {
         &mut self,
         _cx: &mut Context<'_, impl EventOut>,
         value: SensorMode,
-    ) -> SetResult<()> {
+    ) -> SetResult<CommonError<'_>> {
         if matches!(value, SensorMode::Unknown(_)) {
-            return SetResult::SetError(());
+            return SetResult::SetError(CommonError::Unsupported);
         }
         self.ctl.set.sensor_mode = value;
         self.mark_changed_control_sensor_mode();
@@ -492,7 +500,7 @@ impl Device {
     async fn get_control_sensor_mode(
         &mut self,
         _cx: &mut Context<'_, impl EventOut>,
-    ) -> GetResult<SensorMode, ()> {
+    ) -> GetResult<SensorMode, CommonError<'_>> {
         GetResult::Value(self.ctl.set.sensor_mode)
     }
 
@@ -500,10 +508,10 @@ impl Device {
         &mut self,
         _cx: &mut Context<'_, impl EventOut>,
         value: Ratio,
-    ) -> SetResult<()> {
+    ) -> SetResult<CommonError<'_>> {
         let value = value.to_f32();
         if !(-0.95..=0.95).contains(&value) {
-            return SetResult::SetError(());
+            return SetResult::SetError(invalid_argument("out of range"));
         }
         self.manual();
         self.ctl.set.duty = value;
@@ -514,7 +522,7 @@ impl Device {
     async fn get_control_duty_target(
         &mut self,
         _cx: &mut Context<'_, impl EventOut>,
-    ) -> GetResult<Ratio, ()> {
+    ) -> GetResult<Ratio, CommonError<'_>> {
         GetResult::Value(Ratio::quantize(
             self.ctl.set.duty,
             Prefix::Micro,
@@ -526,10 +534,10 @@ impl Device {
         &mut self,
         _cx: &mut Context<'_, impl EventOut>,
         value: Ampere,
-    ) -> SetResult<()> {
+    ) -> SetResult<CommonError<'_>> {
         let value = value.to_f32();
         if !value.is_finite() {
-            return SetResult::SetError(());
+            return SetResult::SetError(invalid_argument("not finite"));
         }
         self.manual();
         self.ctl.set.current = value;
@@ -540,7 +548,7 @@ impl Device {
     async fn get_control_current_target(
         &mut self,
         _cx: &mut Context<'_, impl EventOut>,
-    ) -> GetResult<Ampere, ()> {
+    ) -> GetResult<Ampere, CommonError<'_>> {
         GetResult::Value(Ampere::quantize(
             self.ctl.set.current,
             Prefix::Milli,
@@ -552,10 +560,10 @@ impl Device {
         &mut self,
         _cx: &mut Context<'_, impl EventOut>,
         value: AngularVelocity,
-    ) -> SetResult<()> {
+    ) -> SetResult<CommonError<'_>> {
         let erpm = rpm(value.to_f32());
         if !erpm.is_finite() {
-            return SetResult::SetError(());
+            return SetResult::SetError(invalid_argument("not finite"));
         }
         self.manual();
         self.ctl.set.erpm = erpm;
@@ -566,7 +574,7 @@ impl Device {
     async fn get_control_speed_target(
         &mut self,
         _cx: &mut Context<'_, impl EventOut>,
-    ) -> GetResult<AngularVelocity, ()> {
+    ) -> GetResult<AngularVelocity, CommonError<'_>> {
         GetResult::Value(AngularVelocity::quantize(
             rad_per_s(self.ctl.set.erpm),
             Prefix::Milli,
@@ -578,10 +586,10 @@ impl Device {
         &mut self,
         _cx: &mut Context<'_, impl EventOut>,
         value: Ratio,
-    ) -> SetResult<()> {
+    ) -> SetResult<CommonError<'_>> {
         let value = value.to_f32();
         if !(1e-4..=1e3).contains(&value) {
-            return SetResult::SetError(());
+            return SetResult::SetError(invalid_argument("out of range"));
         }
         self.time_scale = value;
         SetResult::Set
@@ -590,7 +598,7 @@ impl Device {
     async fn get_sim_time_scale(
         &mut self,
         _cx: &mut Context<'_, impl EventOut>,
-    ) -> GetResult<Ratio, ()> {
+    ) -> GetResult<Ratio, CommonError<'_>> {
         GetResult::Value(Ratio::from_f32(self.time_scale))
     }
 
@@ -598,16 +606,19 @@ impl Device {
         &mut self,
         _cx: &mut Context<'_, impl EventOut>,
         value: Load,
-    ) -> SetResult<()> {
+    ) -> SetResult<CommonError<'_>> {
         if matches!(value, Load::Unknown(_)) {
-            return SetResult::SetError(());
+            return SetResult::SetError(CommonError::Unsupported);
         }
         self.load = value;
         self.motor.set_load(sim_load(value));
         SetResult::Set
     }
 
-    async fn get_sim_load(&mut self, _cx: &mut Context<'_, impl EventOut>) -> GetResult<Load, ()> {
+    async fn get_sim_load(
+        &mut self,
+        _cx: &mut Context<'_, impl EventOut>,
+    ) -> GetResult<Load, CommonError<'_>> {
         GetResult::Value(self.load)
     }
 
@@ -615,9 +626,9 @@ impl Device {
         &mut self,
         _cx: &mut Context<'_, impl EventOut>,
         value: Preset,
-    ) -> SetResult<()> {
+    ) -> SetResult<CommonError<'_>> {
         if matches!(value, Preset::Unknown(_)) {
-            return SetResult::SetError(());
+            return SetResult::SetError(CommonError::Unsupported);
         }
         self.preset = value;
         self.restart();
@@ -627,7 +638,7 @@ impl Device {
     async fn get_sim_motor(
         &mut self,
         _cx: &mut Context<'_, impl EventOut>,
-    ) -> GetResult<Preset, ()> {
+    ) -> GetResult<Preset, CommonError<'_>> {
         GetResult::Value(self.preset)
     }
 
@@ -635,9 +646,9 @@ impl Device {
         &mut self,
         _cx: &mut Context<'_, impl EventOut>,
         value: Profile,
-    ) -> SetResult<()> {
+    ) -> SetResult<CommonError<'_>> {
         if matches!(value, Profile::Unknown(_)) {
-            return SetResult::SetError(());
+            return SetResult::SetError(CommonError::Unsupported);
         }
         if value != self.profile {
             self.profile_start_us = self.now_us();
@@ -649,7 +660,7 @@ impl Device {
     async fn get_sim_profile(
         &mut self,
         _cx: &mut Context<'_, impl EventOut>,
-    ) -> GetResult<Profile, ()> {
+    ) -> GetResult<Profile, CommonError<'_>> {
         GetResult::Value(self.profile)
     }
 
