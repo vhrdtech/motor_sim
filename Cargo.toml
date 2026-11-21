@@ -52,10 +52,12 @@ ww_stream = { git = "https://github.com/vhrdtech/wire_weaver", default-features 
 inherits = "release"
 incremental = true
 
+[profile.dev]
+debug = false
+
 # motor_cad's B-rep kernel, STEP parser and its own geometry run tens of times slower unoptimised: optimise them in
 # dev builds too, so tests stay inside nextest's 3 s
 [profile.dev.package.motor_cad]
-debug = false
 opt-level = 3
 [profile.dev.package.monstertruck-core]
 opt-level = 3
