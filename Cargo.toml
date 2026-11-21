@@ -55,6 +55,7 @@ incremental = true
 # motor_cad's B-rep kernel, STEP parser and its own geometry run tens of times slower unoptimised: optimise them in
 # dev builds too, so tests stay inside nextest's 3 s
 [profile.dev.package.motor_cad]
+debug = false
 opt-level = 3
 [profile.dev.package.monstertruck-core]
 opt-level = 3
